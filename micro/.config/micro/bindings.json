@@ -1,0 +1,5 @@
+{
+    "F9": "command:fzfinder",
+    "F12": "command:jumptag",
+    "F8": "command:preview"
+}

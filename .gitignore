@@ -1,0 +1,13 @@
+# Generated or cloned content
+**/plug/
+**/lazy/
+**/tpm/
+**/.cache/
+**/.local/state/
+**/.local/share/
+
+# Editor cruft
+*.swp
+*.swo
+*.tmp
+
