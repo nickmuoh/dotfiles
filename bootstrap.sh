@@ -37,8 +37,7 @@ export ADOPT
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 scripts=(
   setup-wsl.sh
-  setup-packages.sh
-  setup-shell-tools.sh
+  setup-tools.sh
   setup-stow.sh
   setup-micro.sh
   setup-tmux.sh

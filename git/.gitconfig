@@ -1,0 +1,37 @@
+# Machine-specific settings (name, email) live in ~/.gitconfig.local — not tracked.
+[include]
+    path = ~/.gitconfig.local
+
+[url "https://github.com/"]
+    insteadOf = git://github.com/
+
+[core]
+    editor = nvim
+
+[init]
+    defaultBranch = main
+
+# ── difftastic ────────────────────────────────────────────────────────────────
+# diff.external is the recommended integration: passes renames and permission
+# changes to difftastic, giving richer output than the difftool approach.
+[diff]
+    external = difft
+    tool     = difftastic
+
+[difftool "difftastic"]
+    # Fallback for `git difftool -t difftastic`.
+    cmd = difft "$MERGED" "$LOCAL" "abcdef1" "100644" "$REMOTE" "abcdef2" "100644"
+
+[difftool]
+    prompt = false
+
+[pager]
+    difftool = true
+
+[alias]
+    # Run `git log -p` with difftastic diffs.
+    dlog  = -c diff.external=difft log -p --ext-diff
+    # Show most recent commit with difftastic.
+    dshow = -c diff.external=difft show --ext-diff
+    # Run `git diff` with difftastic.
+    difft = -c diff.external=difft diff

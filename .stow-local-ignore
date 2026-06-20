@@ -1,16 +1,7 @@
 ^README\.md$
 ^INSTALL\.md$
 ^AGENTS\.md$
-^plan\.md$
-^bootstrap-plan\.md$
 ^bootstrap\.sh$
 ^\.gitignore$
-^bat\.md$
-^gh\.md$
-^jq\.md$
-^keychain\.md$
-^neotree\.md$
-^wsl\.md$
-^yq\.md$
-^zoxide\.md$
+^docs/
 ^scripts/

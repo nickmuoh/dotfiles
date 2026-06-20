@@ -12,21 +12,13 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 - [fzf](fzf/README.md)
 - [local-bin](local-bin/README.md)
 - [bash-completions](bash-completions/README.md)
+- [git](git/README.md)
 
 ## Root docs
 
 - `INSTALL.md`
 - `AGENTS.md`
-- `plan.md`
-- `bootstrap-plan.md`
-- `bat.md`
-- `gh.md`
-- `jq.md`
-- `keychain.md`
-- `neotree.md`
-- `wsl.md`
-- `yq.md`
-- `zoxide.md`
+- [`docs/`](docs/) — per-tool reference docs
 
 ## Layout
 

@@ -1,0 +1,22 @@
+# git:
+#   pagers:
+#     - externalDiffCommand: /snap/bin/difftastic --color=always
+
+# customCommands:
+#   - key: "<c-a>"
+#     description: "Generate AI commit message"
+#     context: "files"
+#     loadingText: "Generating commit message..."
+#     command: >
+#       bash -c '
+#         PROMPT="$HOME/.config/lazygit/commit_prompt.md"
+#         DIFF="$(git diff --cached)"
+# 
+#         copilot -p "$(cat "$PROMPT")\n\n$DIFF" \
+#           --model "gpt-5-mini" \
+#           --output-format text \
+#           --silent \
+#         > /tmp/commit_msg
+# 
+#         git commit -m "$(cat /tmp/commit_msg)"
+#       '

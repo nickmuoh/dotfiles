@@ -120,7 +120,8 @@ fi
 # SSH
 #
 if command -v keychain >/dev/null 2>&1; then
-    eval "$(keychain --quiet --eval nick_muoh.trimble-github.ed25519)"
+    # keychain v3: --quiet suppresses non-error output (passphrase prompts still use terminal)
+    eval "$(keychain add --quiet --eval "$HOME/.ssh/nick_muoh.trimble-github.ed25519")"
 fi
 
 #

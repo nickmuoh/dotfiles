@@ -11,6 +11,12 @@
 - `~/.local/share/nvim/lazy/`
 - `~/.vimrc` (separate Vim config, not used by Neovim)
 
+## Binary install
+
+The `nvim` binary is NOT installed via apt. `setup-binaries.sh` downloads the official
+GitHub release tarball and extracts it to `~/.local/opt/nvim-linux-x86_64/` with a
+symlink at `~/.local/bin/nvim`.
+
 ## Current state
 
 - Neovim is using the LazyVim starter-style layout:

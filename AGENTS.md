@@ -4,10 +4,10 @@ This folder is living docs for `/home/nmuoh` shell and editor setup. Update docs
 
 ## Keep in sync
 
-- Change `~/.bashrc` or `~/.bash_aliases` → update `bash/README.md`, `bat.md`, `fzf/README.md`, `gh.md`, `jq.md`, `starship/README.md`, `yq.md`, `zoxide.md`
+- Change `~/.bashrc` or `~/.bash_aliases` → update `bash/README.md`, `docs/bat.md`, `fzf/README.md`, `docs/gh.md`, `docs/jq.md`, `starship/README.md`, `docs/yq.md`, `docs/zoxide.md`
 - Change `~/.config/micro/*` or Micro plugins → update `micro/README.md`, `INSTALL.md`, and the plugin notes there
 - Change `~/.tmux.conf` or tmux plugins → update `tmux/README.md` and `INSTALL.md`
-- Change `~/.config/nvim/*` or Neovim plugins → update `nvim/README.md`, `neotree.md`, and `INSTALL.md`
+- Change `~/.config/nvim/*` or Neovim plugins → update `nvim/README.md`, `docs/neotree.md`, and `INSTALL.md`
 - Add new tool or plugin → reflect it in `shell_setup` docs and `INSTALL.md`
 - Change install steps for any tool/plugin → update `INSTALL.md`
 
