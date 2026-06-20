@@ -16,7 +16,6 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 
 ## Root docs
 
-- `INSTALL.md`
 - `AGENTS.md`
 - [`docs/`](docs/) — per-tool reference docs
 
@@ -26,7 +25,24 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 - Package docs live beside their package config in `<package>/README.md`
 - Generated/plugin content belongs in `bootstrap.sh`, not in Stow packages
 
-## Bootstrap
+## Bootstrap and stow
 
-- `bootstrap.sh` orchestrates `scripts/`
-- `./bootstrap.sh --dry-run` prints the full command plan without changing anything
+Run bootstrap first to clone plugins and generated content, then stow the packages:
+
+```sh
+./bootstrap.sh --dry-run   # preview
+./bootstrap.sh             # apply
+```
+
+If config files already exist in `$HOME`, use `--adopt` on the first stow pass:
+
+```sh
+stow -nv bash micro tmux nvim starship fzf local-bin bash-completions lazygit git
+stow -v  bash micro tmux nvim starship fzf local-bin bash-completions lazygit git
+```
+
+To set up the Treemux sidebar (optional):
+
+```sh
+ENABLE_TREEMUX=1 ./bootstrap.sh
+```
