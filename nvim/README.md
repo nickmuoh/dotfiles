@@ -6,6 +6,7 @@
 - `~/.config/nvim/lua/config/lazy.lua`
 - `~/.config/nvim/lua/config/options.lua`
 - `~/.config/nvim/lua/plugins/nord.lua`
+- `~/.config/nvim/lua/plugins/legendary.lua`
 - `~/.config/nvim/lazy-lock.json`
 - `~/.config/nvim/lazyvim.json`
 - `~/.local/share/nvim/lazy/`
@@ -68,6 +69,9 @@ symlink at `~/.local/bin/nvim`.
 - `persistence.nvim`
 - `plenary.nvim`
 - `nvim-telescope/telescope.nvim`
+- `stevearc/dressing.nvim` — routes `vim.ui.select` to Telescope
+- `mrjones2014/legendary.nvim` — Sublime-style command palette (`<leader>p`); frecency-sorted via `kkharji/sqlite.lua`
+- `kkharji/sqlite.lua` — SQLite FFI binding (requires `libsqlite3-dev` on Debian/Ubuntu)
 - `snacks.nvim`
 - `todo-comments.nvim`
 - `tokyonight.nvim`
@@ -94,6 +98,11 @@ Recent state that matters:
 - transparency was added via a custom colorscheme autocmd
 - tmux terminal settings were updated so Nord renders correctly inside tmux
 - `nvim-telescope/telescope.nvim` installed (2026-06-02) via `lazy.nvim`; created `~/.config/nvim/lua/plugins/telescope.lua` and ran `require('lazy').sync()` to fetch the plugin
+
+## Keymaps
+
+- `<leader>p` (n/i/v) — open legendary.nvim command palette (`:Legendary`)
+- `<C-s>` (n/i/v) — save file (`:w`)
 
 ## Caveats
 

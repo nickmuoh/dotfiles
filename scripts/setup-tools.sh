@@ -8,7 +8,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Add or remove package names here. apt handles install and future upgrades.
 APT_PACKAGES=(
   bash-completion curl git fzf bat jq yq tmux starship gh stow
-  lazygit universal-ctags
+  lazygit universal-ctags libsqlite3-dev
 )
 
 # ── github release versions ──────────────────────────────────────────────────
