@@ -3,6 +3,7 @@
     "fzfarg": "--preview 'batcat -f -p {}'",
     "fzfopen": "newtab",
     "fzfpath": "relative",
+    "mkparents": true,
     "pluginrepos": [
         "https://raw.githubusercontent.com/weebi/micro-preview/master/repo.json",
         "https://raw.githubusercontent.com/Neko-Box-Coder/git-status/refs/heads/main/repo.json",
