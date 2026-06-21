@@ -6,6 +6,10 @@
 **/.local/state/
 **/.local/share/
 
+# Agent workspace
+/.local/
+/.cortex/
+
 # Editor cruft
 *.swp
 *.swo
