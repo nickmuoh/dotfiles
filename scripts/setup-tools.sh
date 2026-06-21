@@ -159,6 +159,7 @@ INSTALLER_TOOLS=(
   "zoxide|https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh"
   "uv|https://astral.sh/uv/install.sh"
   "micro|https://getmic.ro|/usr/bin/micro"
+  "gh-copilot|https://gh.io/copilot-install"
 )
 
 log "installer scripts"

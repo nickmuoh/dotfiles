@@ -13,10 +13,6 @@
 - Executable path: `/usr/bin/gh`
 - Package state shows `gh` is installed and available on `PATH`
 
-## History-backed setup notes
-
-- `curl -fsSL https://gh.io/copilot-install | bash`
-
 ## Current state
 
 - There is no `gh`-specific shell init in `~/.bashrc` or `~/.bash_aliases`
