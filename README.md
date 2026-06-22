@@ -13,6 +13,7 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 - [local-bin](local-bin/README.md)
 - [bash-completions](bash-completions/README.md)
 - [git](git/README.md)
+- [snowflake](snowflake/README.md)
 
 ## Root docs
 
@@ -37,8 +38,8 @@ Run bootstrap first to clone plugins and generated content, then stow the packag
 If config files already exist in `$HOME`, use `--adopt` on the first stow pass:
 
 ```sh
-stow -nv bash micro tmux nvim starship fzf local-bin bash-completions lazygit git copilot
-stow -v  bash micro tmux nvim starship fzf local-bin bash-completions lazygit git copilot
+stow -nv bash micro tmux nvim starship fzf local-bin bash-completions lazygit git copilot snowflake
+stow -v  bash micro tmux nvim starship fzf local-bin bash-completions lazygit git copilot snowflake
 ```
 
 To set up the Treemux sidebar (optional):
