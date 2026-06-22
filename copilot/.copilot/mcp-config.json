@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "e-tools": {
+      "tools": [
+        "*"
+      ],
+      "type": "http",
+      "url": "https://mcp.trimble.tools/mcp"
+    },
+    "amplitude": {
+      "tools": [
+        "*"
+      ],
+      "type": "http",
+      "url": "https://mcp.amplitude.com/mcp"
+    },
+    "monte-carlo-mcp": {
+      "type": "http",
+      "url": "https://mcp.getmontecarlo.com/mcp",
+      "tools": [
+        "*"
+      ]
+    }
+  }
+}
