@@ -30,6 +30,45 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 - Package docs live beside their package config in `<package>/README.md`
 - Generated/plugin content belongs in `bootstrap.sh`, not in Stow packages
 
+## Working with Stow
+
+Each package directory mirrors the file path that should exist under `$HOME`.
+For example, `tmux/.tmux.conf` is deployed as `~/.tmux.conf`.
+
+Edit the package file in this repo when changing config:
+
+```sh
+$EDITOR tmux/.tmux.conf
+```
+
+Check that the deployed file is linked back to the package:
+
+```sh
+ls -l ~/.tmux.conf
+```
+
+Preview Stow changes before applying them:
+
+```sh
+stow -nv tmux
+```
+
+Apply the package after the preview looks correct:
+
+```sh
+stow -v tmux
+```
+
+If a config already exists in `$HOME` before the package is stowed, move or
+adopt that file before deploying the package. Stow does not overwrite unrelated
+files by default.
+
+After changing tmux config, reload it in a running tmux session with:
+
+```sh
+tmux source-file ~/.tmux.conf
+```
+
 ## First run
 
 Show bootstrap options and optional environment toggles with:
