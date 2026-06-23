@@ -28,9 +28,14 @@ When asked to install a tool:
 
 Config files are managed as GNU Stow packages. Each package directory in the repo root mirrors its target path under `$HOME`.
 
+- Treat the package file as the source of truth, not the deployed path under `$HOME`.
+- For example, edit `tmux/.tmux.conf` in this repo instead of editing `~/.tmux.conf` directly.
+- If the deployed file is already a symlink into this repo, editing either path changes the same file, but prefer the package path for clarity.
+- Before changing a deployed config, verify the link target when needed with `ls -l <path>`.
 - To add a config file: place it in the correct package subdirectory, then stow the package.
 - Dry-run first: `stow -nv <package>`
 - Deploy: `stow -v <package>`
+- If Stow reports a conflict with a real file in `$HOME`, do not overwrite it silently; inspect the file and ask before replacing or adopting it.
 
 ## Bootstrap
 
