@@ -9,7 +9,9 @@
 ## Installed state
 
 - Installed version: `0.72.0`
-- Installed from a Git clone under `~/.fzf`
+- `setup-tools.sh` installs the `fzf` apt package.
+- `setup-tools.sh` skips the `~/.fzf` clone when `fzf` is already on `PATH`.
+- `setup-tools.sh --reinstall-tools` pulls or creates the `~/.fzf` clone and runs `~/.fzf/install --all --no-update-rc`.
 - Bash loads fzf with `[ -f ~/.fzf.bash ] && source ~/.fzf.bash`
 
 ## History-backed setup notes
@@ -29,6 +31,5 @@
 
 ## Caveats
 
-- fzf was installed from a clone, not a package manager, so updates are likely manual unless another tool manages that directory.
 - The shell integration depends on `~/.fzf.bash` existing.
 - The preview integration in micro expects `batcat` to be installed.

@@ -5,6 +5,52 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/lib.sh"
 enable_error_trap
 
+usage() {
+  cat <<'EOF'
+Usage: scripts/setup-tools.sh [options]
+
+Options:
+  -n, --dry-run          Print planned commands without changing files
+      --reinstall-tools Reinstall or refresh tools even when already installed
+  -h, --help             Show this help message
+EOF
+}
+
+REINSTALL_TOOLS="${REINSTALL_TOOLS:-0}"
+for arg in "$@"; do
+  case "$arg" in
+    -n|--dry-run)
+      DRY_RUN=1
+      ;;
+    --reinstall-tools)
+      REINSTALL_TOOLS=1
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'setup-tools: unknown argument: %s\n' "$arg" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+export DRY_RUN
+export REINSTALL_TOOLS
+
+should_reinstall_tools() {
+  [[ "${REINSTALL_TOOLS:-0}" == "1" ]]
+}
+
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+apt_package_installed() {
+  dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q 'install ok installed'
+}
+
 ## [apt packages]
 # Add or remove package names here. apt handles install and future upgrades.
 APT_PACKAGES=(
@@ -59,8 +105,23 @@ GITHUB_INSTALLS=(
 ## [install]
 
 log "apt packages"
-run sudo apt-get update
-run sudo apt-get install -y "${APT_PACKAGES[@]}"
+apt_targets=()
+for pkg in "${APT_PACKAGES[@]}"; do
+  if should_reinstall_tools || ! apt_package_installed "$pkg"; then
+    apt_targets+=("$pkg")
+  else
+    status skip "$pkg already installed"
+  fi
+done
+
+if [ "${#apt_targets[@]}" -gt 0 ]; then
+  run sudo apt-get update
+  if should_reinstall_tools; then
+    run sudo apt-get install -y --reinstall "${apt_targets[@]}"
+  else
+    run sudo apt-get install -y "${apt_targets[@]}"
+  fi
+fi
 
 log "github release installs"
 run mkdir -p "$HOME/.local/bin" "$HOME/.local/opt"
@@ -71,7 +132,7 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
 
   case "$method" in
     deb)
-      if ! command -v "$cmd" >/dev/null 2>&1; then
+      if should_reinstall_tools || ! command_exists "$cmd"; then
         sublog "$cmd"
         if is_dry_run; then
           status get "$url"
@@ -82,11 +143,13 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
           curl -L -o "$tmp_dir/$file" "$url"
           sudo dpkg -i "$tmp_dir/$file"
         fi
+      else
+        status skip "$cmd already installed"
       fi
       ;;
 
     tarball)
-      if [ ! -e "$HOME/.local/opt/$extra" ]; then
+      if should_reinstall_tools || ! command_exists "$cmd"; then
         sublog "$cmd"
         if is_dry_run; then
           status get "$url"
@@ -96,15 +159,20 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
           make_temp_dir "setup-tools-${cmd}" tmp_dir
           status get "$url"
           curl -L -o "$tmp_dir/$file" "$url"
+          if should_reinstall_tools && [ -e "$HOME/.local/opt/$extra" ]; then
+            run rm -rf "$HOME/.local/opt/$extra"
+          fi
           tar -C "$HOME/.local/opt" -xzf "$tmp_dir/$file"
           status link "$HOME/.local/bin/$cmd -> $HOME/.local/opt/$extra/bin/$cmd"
           ln -sf "$HOME/.local/opt/$extra/bin/$cmd" "$HOME/.local/bin/$cmd"
         fi
+      else
+        status skip "$cmd already installed"
       fi
       ;;
 
     bin)
-      if [ ! -f "$HOME/.local/bin/$cmd" ]; then
+      if should_reinstall_tools || ! command_exists "$cmd"; then
         sublog "$cmd"
         depth="$(echo "$extra" | tr -cd '/' | wc -c)"
         if is_dry_run; then
@@ -117,11 +185,13 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
           tar -C "$HOME/.local/bin" --strip-components="$depth" -xzf "$tmp_dir/$file" "$extra"
           chmod +x "$HOME/.local/bin/$cmd"
         fi
+      else
+        status skip "$cmd already installed"
       fi
       ;;
 
     direct)
-      if ! command -v "$cmd" >/dev/null 2>&1; then
+      if should_reinstall_tools || ! command_exists "$cmd"; then
         sublog "$cmd"
         if is_dry_run; then
           status get "$url"
@@ -133,6 +203,8 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
           mv "$tmp_dir/$file" "$HOME/.local/bin/$cmd"
           chmod +x "$HOME/.local/bin/$cmd"
         fi
+      else
+        status skip "$cmd already installed"
       fi
       ;;
   esac
@@ -150,20 +222,28 @@ SNAP_PACKAGES=(
 log "snap packages"
 for entry in "${SNAP_PACKAGES[@]}"; do
   IFS='|' read -r pkg flags <<< "$entry"
-  if ! snap list "$pkg" >/dev/null 2>&1; then
+  if should_reinstall_tools || ! snap list "$pkg" >/dev/null 2>&1; then
     sublog "$pkg"
     snap_args=("$pkg")
     if [ -n "${flags:-}" ]; then
       read -r -a snap_flags <<< "$flags"
       snap_args+=("${snap_flags[@]}")
     fi
-    install_cmd="$(command_string sudo snap install "${snap_args[@]}")"
+    if should_reinstall_tools && snap list "$pkg" >/dev/null 2>&1; then
+      install_cmd="$(command_string sudo snap refresh "$pkg")"
+      snap_command=(sudo snap refresh "$pkg")
+    else
+      install_cmd="$(command_string sudo snap install "${snap_args[@]}")"
+      snap_command=(sudo snap install "${snap_args[@]}")
+    fi
     if is_dry_run; then
       status plan "$install_cmd"
     else
       status run "$install_cmd"
-      sudo snap install "${snap_args[@]}"
+      "${snap_command[@]}"
     fi
+  else
+    status skip "$pkg already installed"
   fi
 done
 
@@ -183,14 +263,14 @@ INSTALLER_TOOLS=(
   "uv|https://astral.sh/uv/install.sh"
   "fnm|https://fnm.vercel.app/install||bash|-s -- --skip-shell"
   "micro|https://getmic.ro|/usr/bin/micro"
-  "gh-copilot|https://gh.io/copilot-install||bash"
+  "copilot|https://gh.io/copilot-install||bash"
 )
 
 log "installer scripts"
 for entry in "${INSTALLER_TOOLS[@]}"; do
   IFS='|' read -r cmd url dest shell shell_args <<< "$entry"
   shell="${shell:-sh}"
-  if ! command -v "$cmd" >/dev/null 2>&1; then
+  if should_reinstall_tools || ! command_exists "$cmd"; then
     sublog "$cmd"
     if [ -n "${dest:-}" ]; then
       if is_dry_run; then
@@ -207,12 +287,25 @@ for entry in "${INSTALLER_TOOLS[@]}"; do
         run_sh "curl -sSfL $url | $shell"
       fi
     fi
+  else
+    status skip "$cmd already installed"
   fi
 done
 
 ## [fzf]
 # Installed via git clone + bundled install script (not a pipe-to-sh installer).
-clone_if_missing "$HOME/.fzf" --depth 1 https://github.com/junegunn/fzf.git
-if [ ! -f "$HOME/.fzf.bash" ]; then
+if should_reinstall_tools; then
+  if [ -d "$HOME/.fzf/.git" ]; then
+    run git -C "$HOME/.fzf" pull --ff-only
+  else
+    clone_if_missing "$HOME/.fzf" --depth 1 https://github.com/junegunn/fzf.git
+  fi
   run_sh "$HOME/.fzf/install --all --no-update-rc"
+elif command_exists fzf; then
+  status skip "fzf already installed"
+else
+  clone_if_missing "$HOME/.fzf" --depth 1 https://github.com/junegunn/fzf.git
+  if [ ! -f "$HOME/.fzf.bash" ]; then
+    run_sh "$HOME/.fzf/install --all --no-update-rc"
+  fi
 fi

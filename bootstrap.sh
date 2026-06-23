@@ -16,10 +16,11 @@ Runs the shell setup bootstrap scripts in order:
   setup-postinstall.sh
 
 Options:
-  -n, --dry-run   Print planned commands without changing files
-      --adopt     Pass --adopt to GNU Stow when stowing packages
-      --overwrite Remove existing package-file targets before stowing
-  -h, --help      Show this help message
+  -n, --dry-run          Print planned commands without changing files
+      --adopt            Pass --adopt to GNU Stow when stowing packages
+      --overwrite        Remove existing package-file targets before stowing
+      --reinstall-tools  Reinstall or refresh tools even when already installed
+  -h, --help             Show this help message
 
 Optional environment:
   ENABLE_TREEMUX=1  Create the Treemux Python venv and install neovim
@@ -30,6 +31,7 @@ Examples:
   ./bootstrap.sh
   ./bootstrap.sh --adopt
   ./bootstrap.sh --overwrite
+  ./bootstrap.sh --reinstall-tools
   ENABLE_TREEMUX=1 ./bootstrap.sh
 EOF
 }
@@ -37,6 +39,7 @@ EOF
 DRY_RUN=0
 ADOPT=0
 OVERWRITE=0
+REINSTALL_TOOLS=0
 for arg in "$@"; do
   case "$arg" in
     -n|--dry-run)
@@ -47,6 +50,9 @@ for arg in "$@"; do
       ;;
     --overwrite)
       OVERWRITE=1
+      ;;
+    --reinstall-tools)
+      REINSTALL_TOOLS=1
       ;;
     -h|--help)
       usage
@@ -68,6 +74,7 @@ fi
 export DRY_RUN
 export ADOPT
 export OVERWRITE
+export REINSTALL_TOOLS
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 scripts=(
