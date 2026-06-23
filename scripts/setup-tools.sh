@@ -150,21 +150,24 @@ done
 # ── installer scripts ─────────────────────────────────────────────────────────
 # Tools installed via their own installer scripts.
 #
-#   "cmd|url"       — installer runs itself to completion and adds cmd to PATH
-#   "cmd|url|dest"  — installer drops the binary in CWD; it is then moved to dest
-#                     (used when the installer doesn't self-install, e.g. getmic.ro)
+#   "cmd|url"             — installer runs with sh and adds cmd to PATH
+#   "cmd|url|dest"        — installer runs with bash, drops the binary in CWD,
+#                           and moves it to dest (e.g. getmic.ro)
+#   "cmd|url||shell"      — installer runs with the named shell and adds cmd
+#                           to PATH
 #
 # Skipped when: command -v <cmd> succeeds.
 INSTALLER_TOOLS=(
   "zoxide|https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh"
   "uv|https://astral.sh/uv/install.sh"
   "micro|https://getmic.ro|/usr/bin/micro"
-  "gh-copilot|https://gh.io/copilot-install"
+  "gh-copilot|https://gh.io/copilot-install||bash"
 )
 
 log "installer scripts"
 for entry in "${INSTALLER_TOOLS[@]}"; do
-  IFS='|' read -r cmd url dest <<< "$entry"
+  IFS='|' read -r cmd url dest shell <<< "$entry"
+  shell="${shell:-sh}"
   if ! command -v "$cmd" >/dev/null 2>&1; then
     log "$cmd"
     if [ -n "${dest:-}" ]; then
@@ -174,7 +177,7 @@ for entry in "${INSTALLER_TOOLS[@]}"; do
         (cd /tmp && curl "$url" | bash && sudo mv "$cmd" "$dest")
       fi
     else
-      run_sh "curl -sSfL $url | sh"
+      run_sh "curl -sSfL $url | $shell"
     fi
   fi
 done
