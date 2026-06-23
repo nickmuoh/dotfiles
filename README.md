@@ -21,6 +21,8 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 
 - `AGENTS.md`
 - [`docs/`](docs/) — per-tool reference docs
+- [`docs/fnm.md`](docs/fnm.md)
+- [`docs/uv.md`](docs/uv.md)
 
 ## Layout
 

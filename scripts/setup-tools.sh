@@ -9,7 +9,7 @@ enable_error_trap
 # Add or remove package names here. apt handles install and future upgrades.
 APT_PACKAGES=(
   bash-completion curl git fzf bat jq yq tmux starship gh stow
-  lazygit universal-ctags libsqlite3-dev
+  lazygit universal-ctags libsqlite3-dev unzip
 )
 
 ## [github release versions]
@@ -170,23 +170,25 @@ done
 ## [installer scripts]
 # Tools installed via their own installer scripts.
 #
-#   "cmd|url"             — installer runs with sh and adds cmd to PATH
-#   "cmd|url|dest"        — installer runs with bash, drops the binary in CWD,
-#                           and moves it to dest (e.g. getmic.ro)
-#   "cmd|url||shell"      — installer runs with the named shell and adds cmd
-#                           to PATH
+#   "cmd|url"                    — installer runs with sh and adds cmd to PATH
+#   "cmd|url|dest"               — installer runs with bash, drops the binary in CWD,
+#                                  and moves it to dest (e.g. getmic.ro)
+#   "cmd|url||shell"             — installer runs with the named shell and adds cmd
+#                                  to PATH
+#   "cmd|url||shell|shell_args"  — installer runs with the named shell and args
 #
 # Skipped when: command -v <cmd> succeeds.
 INSTALLER_TOOLS=(
   "zoxide|https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh"
   "uv|https://astral.sh/uv/install.sh"
+  "fnm|https://fnm.vercel.app/install||bash|-s -- --skip-shell"
   "micro|https://getmic.ro|/usr/bin/micro"
   "gh-copilot|https://gh.io/copilot-install||bash"
 )
 
 log "installer scripts"
 for entry in "${INSTALLER_TOOLS[@]}"; do
-  IFS='|' read -r cmd url dest shell <<< "$entry"
+  IFS='|' read -r cmd url dest shell shell_args <<< "$entry"
   shell="${shell:-sh}"
   if ! command -v "$cmd" >/dev/null 2>&1; then
     sublog "$cmd"
@@ -199,7 +201,11 @@ for entry in "${INSTALLER_TOOLS[@]}"; do
         (cd "$tmp_dir" && curl "$url" | bash && sudo mv "$cmd" "$dest")
       fi
     else
-      run_sh "curl -sSfL $url | $shell"
+      if [ -n "${shell_args:-}" ]; then
+        run_sh "curl -fsSL $url | $shell $shell_args"
+      else
+        run_sh "curl -sSfL $url | $shell"
+      fi
     fi
   fi
 done
