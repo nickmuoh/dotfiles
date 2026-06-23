@@ -4,21 +4,21 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/lib.sh"
 
-# ── apt packages ─────────────────────────────────────────────────────────────
+## [apt packages]
 # Add or remove package names here. apt handles install and future upgrades.
 APT_PACKAGES=(
   bash-completion curl git fzf bat jq yq tmux starship gh stow
   lazygit universal-ctags libsqlite3-dev
 )
 
-# ── github release versions ──────────────────────────────────────────────────
+## [github release versions]
 # Update the version variable here when upgrading a tool.
 # nvim uses the /latest/ GitHub redirect and does not need a pinned version.
 RG_VERSION="14.1.1"
 PANDOC_VERSION="3.10"
 KEYCHAIN_VERSION="3.0.0_beta1"
 
-# ── github release installs ──────────────────────────────────────────────────
+## [github release installs]
 # Each entry is a pipe-delimited string:  "cmd|method|url"  or  "cmd|method|url|extra"
 #
 #   cmd    — the binary name (used for the idempotency check and symlink target)
@@ -55,7 +55,7 @@ GITHUB_INSTALLS=(
   "keychain|direct|https://github.com/danielrobbins/keychain/releases/download/${KEYCHAIN_VERSION}/keychain-${KEYCHAIN_VERSION}.pyz"
 )
 
-# ── install ───────────────────────────────────────────────────────────────────
+## [install]
 
 log "apt packages"
 run sudo apt-get update
@@ -133,7 +133,7 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
   esac
 done
 
-# ── snap packages ─────────────────────────────────────────────────────────────
+## [snap packages]
 # Add package entries here. snap handles install and updates.
 # Format: "pkg" or "pkg|flags"
 # Skipped when: snap list <pkg> already succeeds.
@@ -162,7 +162,7 @@ for entry in "${SNAP_PACKAGES[@]}"; do
   fi
 done
 
-# ── installer scripts ─────────────────────────────────────────────────────────
+## [installer scripts]
 # Tools installed via their own installer scripts.
 #
 #   "cmd|url"             — installer runs with sh and adds cmd to PATH
@@ -198,7 +198,7 @@ for entry in "${INSTALLER_TOOLS[@]}"; do
   fi
 done
 
-# ── fzf ───────────────────────────────────────────────────────────────────────
+## [fzf]
 # Installed via git clone + bundled install script (not a pipe-to-sh installer).
 clone_if_missing "$HOME/.fzf" --depth 1 https://github.com/junegunn/fzf.git
 if [ ! -f "$HOME/.fzf.bash" ]; then
