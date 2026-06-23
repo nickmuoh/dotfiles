@@ -134,21 +134,30 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
 done
 
 # ── snap packages ─────────────────────────────────────────────────────────────
-# Add package names here. snap handles install and updates.
+# Add package entries here. snap handles install and updates.
+# Format: "pkg" or "pkg|flags"
 # Skipped when: snap list <pkg> already succeeds.
 SNAP_PACKAGES=(
   difftastic
+  "aws-cli|--classic"
 )
 
 log "snap packages"
-for pkg in "${SNAP_PACKAGES[@]}"; do
+for entry in "${SNAP_PACKAGES[@]}"; do
+  IFS='|' read -r pkg flags <<< "$entry"
   if ! snap list "$pkg" >/dev/null 2>&1; then
     sublog "$pkg"
+    snap_args=("$pkg")
+    if [ -n "${flags:-}" ]; then
+      read -r -a snap_flags <<< "$flags"
+      snap_args+=("${snap_flags[@]}")
+    fi
+    install_cmd="$(command_string sudo snap install "${snap_args[@]}")"
     if is_dry_run; then
-      status plan "sudo snap install $pkg"
+      status plan "$install_cmd"
     else
-      status run "sudo snap install $pkg"
-      sudo snap install "$pkg"
+      status run "$install_cmd"
+      sudo snap install "${snap_args[@]}"
     fi
   fi
 done
