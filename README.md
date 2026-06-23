@@ -30,6 +30,12 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 
 ## First run
 
+Show bootstrap options and optional environment toggles with:
+
+```sh
+./bootstrap.sh --help
+```
+
 Preview the bootstrap actions first:
 
 ```sh
