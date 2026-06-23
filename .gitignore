@@ -15,3 +15,5 @@
 *.swo
 *.tmp
 
+# Micro Buffer files
+micro/buffers/*
