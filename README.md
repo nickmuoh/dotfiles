@@ -13,6 +13,7 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 - [local-bin](local-bin/README.md)
 - [bash-completions](bash-completions/README.md)
 - [git](git/README.md)
+- [copilot](copilot/README.md)
 - [snowflake](snowflake/README.md)
 
 ## Root docs
