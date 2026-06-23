@@ -10,7 +10,8 @@ if ! is_dry_run; then
 fi
 
 if is_dry_run; then
-  printf '+ nvim --headless "+Lazy! sync" +qa\n'
+  status plan 'nvim --headless "+Lazy! sync" +qa'
 else
+  status run 'nvim --headless "+Lazy! sync" +qa'
   nvim --headless "+Lazy! sync" +qa
 fi

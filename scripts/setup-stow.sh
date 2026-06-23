@@ -21,9 +21,8 @@ if [[ "${ADOPT:-0}" == "1" ]]; then
 fi
 
 if is_dry_run; then
-  printf '+ cd %q && ' "$repo_root"
-  printf '%q ' stow "${stow_args[@]}" "${packages[@]}"
-  printf '\n'
+  status plan "cd $(printf '%q' "$repo_root") && $(command_string stow "${stow_args[@]}" "${packages[@]}")"
 else
+  status run "cd $(printf '%q' "$repo_root") && $(command_string stow "${stow_args[@]}" "${packages[@]}")"
   (cd "$repo_root" && stow "${stow_args[@]}" "${packages[@]}")
 fi
