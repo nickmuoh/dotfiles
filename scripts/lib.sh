@@ -199,6 +199,25 @@ enable_error_trap() {
   trap on_exit EXIT
   set -E
   __BOOTSTRAP_TRAPS_ENABLED=1
+  ensure_tmpdir
+}
+
+# Ensure TMPDIR points at an existing writable directory before installers run.
+# Args: none. Reads and exports TMPDIR.
+# Effects: creates TMPDIR when needed during real runs.
+ensure_tmpdir() {
+  local tmp_base=${TMPDIR:-/tmp}
+
+  if is_dry_run; then
+    return 0
+  fi
+
+  mkdir -p "$tmp_base"
+  require_dir "$tmp_base"
+  [[ -w "$tmp_base" ]] || die "temp directory is not writable: $tmp_base"
+
+  tmp_base="$(cd "$tmp_base" && pwd)"
+  export TMPDIR="$tmp_base"
 }
 
 # Create a temp directory, register it for cleanup, and assign it to var_name.
