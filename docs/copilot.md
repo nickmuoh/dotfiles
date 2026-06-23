@@ -8,7 +8,7 @@ AI coding assistant for the terminal, installed as a gh extension wrapper.
 curl -sSfL https://gh.io/copilot-install | bash
 ```
 
-`setup-tools.sh` runs this installer with `bash` because the installer uses Bash syntax. The setup library creates and exports `TMPDIR` when needed before installer scripts run.
+`setup-tools.sh` checks for `copilot` before running the installer. It runs this installer with `bash` because the installer uses Bash syntax. The setup library creates and exports `TMPDIR` when needed before installer scripts run.
 
 ## Config directory
 

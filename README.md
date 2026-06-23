@@ -107,6 +107,13 @@ repo, run:
 `--overwrite` removes existing file and symlink targets for configured Stow
 packages before running Stow. It does not remove directory targets.
 
+By default, tool setup checks local package or command state and skips installed
+tools before doing network install work. To reinstall or refresh tools, run:
+
+```sh
+./bootstrap.sh --reinstall-tools
+```
+
 Set up the optional Treemux sidebar with:
 
 ```sh
