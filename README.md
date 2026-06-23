@@ -16,6 +16,7 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 - [lazygit](lazygit/README.md)
 - [copilot](copilot/README.md)
 - [snowflake](snowflake/README.md)
+- [agents](agents/README.md)
 
 ## Root docs
 
