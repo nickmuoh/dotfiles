@@ -132,6 +132,13 @@ export WINHOME="/mnt/c/Users/nmuoh"
 export TMPDIR="/home/nmuoh/tmp"
 
 #
+# fnm
+#
+if command -v fnm >/dev/null 2>&1; then
+    eval "$(fnm env --use-on-cd --shell bash)"
+fi
+
+#
 # Starship
 #
 eval "$(starship init bash)"

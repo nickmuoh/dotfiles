@@ -3,6 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/lib.sh"
+enable_error_trap
 
 log "stow packages"
 if ! is_dry_run; then
@@ -21,7 +22,8 @@ if [[ "${ADOPT:-0}" == "1" ]]; then
 fi
 
 if is_dry_run; then
-  (cd "$repo_root" && stow "${stow_args[@]}" "${packages[@]}")
+  status plan "cd $(printf '%q' "$repo_root") && $(command_string stow "${stow_args[@]}" "${packages[@]}")"
 else
+  status run "cd $(printf '%q' "$repo_root") && $(command_string stow "${stow_args[@]}" "${packages[@]}")"
   (cd "$repo_root" && stow "${stow_args[@]}" "${packages[@]}")
 fi

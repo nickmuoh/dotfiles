@@ -3,6 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/lib.sh"
+enable_error_trap
 
 log "tmux plugins"
 if ! is_dry_run; then
@@ -18,11 +19,12 @@ fi
 if [ -d "$HOME/.tmux/plugins/tmux-cpu-mem-monitor" ]; then
   if command -v uv >/dev/null 2>&1; then
     if is_dry_run; then
-      printf '+ cd %q && uv sync\n' "$HOME/.tmux/plugins/tmux-cpu-mem-monitor"
+      status plan "cd $(printf '%q' "$HOME/.tmux/plugins/tmux-cpu-mem-monitor") && uv sync"
     else
+      status run "cd $(printf '%q' "$HOME/.tmux/plugins/tmux-cpu-mem-monitor") && uv sync"
       (cd "$HOME/.tmux/plugins/tmux-cpu-mem-monitor" && uv sync)
     fi
   else
-    log "uv not found; skipping tmux-cpu-mem-monitor sync"
+    status skip "uv not found; skipping tmux-cpu-mem-monitor sync"
   fi
 fi

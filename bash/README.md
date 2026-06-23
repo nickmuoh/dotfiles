@@ -7,6 +7,7 @@
 - `~/.config/starship.toml`
 - `~/.fzf.bash`
 - `~/.local/bin/keychain`
+- `~/.local/share/fnm/`
 
 ## Aliases from `~/.bash_aliases`
 
@@ -24,7 +25,7 @@
 - `~/.bashrc` is still mostly the default Debian/Ubuntu shell startup file.
 - Bash completion is enabled when the system completion files exist.
 - `MICRO_TRUECOLOR=1` is exported, which helps micro render truecolor themes.
-- `starship`, `fzf`, and `zoxide` are initialized directly from `~/.bashrc`.
+- `starship`, `fzf`, `zoxide`, and `fnm` are initialized directly from `~/.bashrc`.
 - `gh` is installed and on `PATH`, but there is no `gh` alias, completion hook, or other shell-specific setup in the Bash config.
 - `~/.bash_aliases` is sourced from `~/.bashrc` when the file exists.
 - SSH auth is initialized by `keychain` for `nick_muoh.trimble-github.ed25519` instead of starting a fresh `ssh-agent` per shell.
@@ -35,6 +36,7 @@
 - Starship: `eval "$(starship init bash)"`
 - fzf: `[ -f ~/.fzf.bash ] && source ~/.fzf.bash`
 - zoxide: `eval "$(zoxide init bash)"`
+- fnm: `eval "$(fnm env --use-on-cd --shell bash)"`
 - keychain: `eval "$(keychain --quiet --eval nick_muoh.trimble-github.ed25519)"`
 - `bat` behavior is documented separately in `bat.md`
 
@@ -46,6 +48,7 @@
 - `~/.fzf/install`
 - `curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh`
 - `curl -fsSL https://gh.io/copilot-install | bash`
+- `curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell`
 - `curl -fsSL https://raw.githubusercontent.com/danielrobbins/keychain/2b3c181eaa73ca27b0cfa3fd12148d6b69e35311/keychain.sh -o ~/.local/bin/keychain`
 - `curl -fsSL https://raw.githubusercontent.com/danielrobbins/keychain/2b3c181eaa73ca27b0cfa3fd12148d6b69e35311/completions/keychain.bash -o ~/.local/share/bash-completion/completions/keychain`
 - multiple `source ~/.bashrc` runs after edits
@@ -55,4 +58,4 @@
 - The shell config is a mix of distro defaults and personal additions; most customization lives at the bottom of `~/.bashrc`.
 - There is no separate tracked config for zoxide; its behavior currently comes from the default `zoxide init bash` output.
 - `gh` currently behaves like a standard installed CLI binary rather than a tool with extra Bash integration.
-- `starship`, `fzf`, `zoxide`, and `keychain` are only initialized for interactive Bash shells.
+- `starship`, `fzf`, `zoxide`, `fnm`, and `keychain` are only initialized for interactive Bash shells.

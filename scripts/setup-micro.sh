@@ -3,6 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/lib.sh"
+enable_error_trap
 
 log "micro plugins"
 if ! is_dry_run; then
@@ -11,8 +12,9 @@ fi
 
 for plugin in gitStatus preview fzfinder; do
   if is_dry_run; then
-    printf '+ micro -plugin install %s\n' "$plugin"
+    status plan "micro -plugin install $plugin"
   else
+    status plug "$plugin"
     micro -plugin install "$plugin"
   fi
 done

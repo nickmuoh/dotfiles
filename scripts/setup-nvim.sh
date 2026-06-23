@@ -3,6 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/lib.sh"
+enable_error_trap
 
 log "neovim bootstrap"
 if ! is_dry_run; then
@@ -10,7 +11,8 @@ if ! is_dry_run; then
 fi
 
 if is_dry_run; then
-  printf '+ nvim --headless "+Lazy! sync" +qa\n'
+  status plan 'nvim --headless "+Lazy! sync" +qa'
 else
+  status run 'nvim --headless "+Lazy! sync" +qa'
   nvim --headless "+Lazy! sync" +qa
 fi
