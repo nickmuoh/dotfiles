@@ -3,6 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/lib.sh"
+enable_error_trap
 
 ## [apt packages]
 # Add or remove package names here. apt handles install and future upgrades.
@@ -76,8 +77,10 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
           status get "$url"
           status plan "sudo dpkg -i $file"
         else
+          make_temp_dir "setup-tools-${cmd}" tmp_dir
           status get "$url"
-          (cd /tmp && curl -LO "$url" && sudo dpkg -i "$file" && rm "$file")
+          curl -L -o "$tmp_dir/$file" "$url"
+          sudo dpkg -i "$tmp_dir/$file"
         fi
       fi
       ;;
@@ -90,8 +93,10 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
           status unpack "~/.local/opt/$extra"
           status link "~/.local/bin/$cmd -> ~/.local/opt/$extra/bin/$cmd"
         else
+          make_temp_dir "setup-tools-${cmd}" tmp_dir
           status get "$url"
-          (cd /tmp && curl -LO "$url" && tar -C "$HOME/.local/opt" -xzf "$file" && rm "$file")
+          curl -L -o "$tmp_dir/$file" "$url"
+          tar -C "$HOME/.local/opt" -xzf "$tmp_dir/$file"
           status link "$HOME/.local/bin/$cmd -> $HOME/.local/opt/$extra/bin/$cmd"
           ln -sf "$HOME/.local/opt/$extra/bin/$cmd" "$HOME/.local/bin/$cmd"
         fi
@@ -106,14 +111,11 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
           status get "$url"
           status unpack "~/.local/bin/$cmd"
         else
+          make_temp_dir "setup-tools-${cmd}" tmp_dir
           status get "$url"
-          (
-            cd /tmp
-            curl -LO "$url"
-            tar -C "$HOME/.local/bin" --strip-components="$depth" -xzf "$file" "$extra"
-            chmod +x "$HOME/.local/bin/$cmd"
-            rm "$file"
-          )
+          curl -L -o "$tmp_dir/$file" "$url"
+          tar -C "$HOME/.local/bin" --strip-components="$depth" -xzf "$tmp_dir/$file" "$extra"
+          chmod +x "$HOME/.local/bin/$cmd"
         fi
       fi
       ;;
@@ -125,8 +127,11 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
           status get "$url"
           status install "~/.local/bin/$cmd"
         else
+          make_temp_dir "setup-tools-${cmd}" tmp_dir
           status get "$url"
-          (cd /tmp && curl -LO "$url" && mv "$file" "$HOME/.local/bin/$cmd" && chmod +x "$HOME/.local/bin/$cmd")
+          curl -L -o "$tmp_dir/$file" "$url"
+          mv "$tmp_dir/$file" "$HOME/.local/bin/$cmd"
+          chmod +x "$HOME/.local/bin/$cmd"
         fi
       fi
       ;;
@@ -187,10 +192,11 @@ for entry in "${INSTALLER_TOOLS[@]}"; do
     sublog "$cmd"
     if [ -n "${dest:-}" ]; then
       if is_dry_run; then
-        status plan "(cd /tmp && curl $url | bash && sudo mv $cmd $dest)"
+        status plan "(cd \"\$(mktemp -d)\" && curl $url | bash && sudo mv $cmd $dest)"
       else
-        status run "(cd /tmp && curl $url | bash && sudo mv $cmd $dest)"
-        (cd /tmp && curl "$url" | bash && sudo mv "$cmd" "$dest")
+        make_temp_dir "setup-tools-${cmd}" tmp_dir
+        status run "(cd $(printf '%q' "$tmp_dir") && curl $url | bash && sudo mv $cmd $dest)"
+        (cd "$tmp_dir" && curl "$url" | bash && sudo mv "$cmd" "$dest")
       fi
     else
       run_sh "curl -sSfL $url | $shell"

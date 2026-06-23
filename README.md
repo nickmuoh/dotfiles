@@ -73,6 +73,8 @@ Bootstrap output uses `==>` section headers and indented status labels:
 - `skip` means the target already exists or the step does not apply
 - `get`, `unpack`, `link`, `install`, and `plug` describe install actions
 - `todo` means a manual follow-up remains after bootstrap completes
+- `error` reports the script, line, failed command, and exit code when a setup
+  command fails
 
 Colors are enabled only for interactive terminals. Set `NO_COLOR=1` to force
 plain output.

@@ -52,6 +52,15 @@ Bootstrap scripts source `scripts/lib.sh` and use Homebrew-inspired structured l
 - Do not print bootstrap actions with ad hoc `printf '+ ...'` or plain `echo`; route new output through `log`, `sublog`, `status`, `run`, or `run_sh`.
 - Keep color behavior centralized in `scripts/lib.sh`. Colors are enabled only for interactive terminals and can be disabled with `NO_COLOR=1`.
 
+## Bootstrap error handling
+
+Bootstrap and setup scripts use `set -euo pipefail` plus shared traps from `scripts/lib.sh`.
+
+- After sourcing `scripts/lib.sh`, call `enable_error_trap` in setup scripts so failures print a structured `error` line and managed temp directories are cleaned up.
+- Use `make_temp_dir <prefix> <var_name>` for temporary download or build directories instead of ad hoc `/tmp` work. The shared `EXIT` trap removes registered temp directories.
+- If a script needs a local trap, preserve the shared cleanup and error-reporting behavior instead of replacing it silently.
+- Keep expected failures inside explicit conditionals such as `if ! command -v tool ...; then`; use `|| true` only when failure is intentionally acceptable.
+
 ## Tmux safety
 
 - Never run `tmux kill-server` from inside a running session — it interrupts the current shell context.
