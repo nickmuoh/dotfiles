@@ -32,7 +32,7 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 Run bootstrap first to clone plugins and generated content, then stow the packages:
 
 ```sh
-./bootstrap.sh --dry-run   # preview
+./bootstrap.sh --dry-run   # print commands without applying changes
 ./bootstrap.sh             # apply
 ```
 
