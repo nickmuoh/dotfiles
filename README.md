@@ -59,9 +59,9 @@ Apply the package after the preview looks correct:
 stow -v tmux
 ```
 
-If a config already exists in `$HOME` before the package is stowed, move or
-adopt that file before deploying the package. Stow does not overwrite unrelated
-files by default.
+If a config already exists in `$HOME` before the package is stowed, move,
+adopt, or overwrite that file before deploying the package. Stow does not
+overwrite unrelated files by default.
 
 After changing tmux config, reload it in a running tmux session with:
 
@@ -95,6 +95,16 @@ bootstrap pass:
 ```sh
 ./bootstrap.sh --adopt
 ```
+
+To replace existing matching files in `$HOME` with the tracked files from this
+repo, run:
+
+```sh
+./bootstrap.sh --overwrite
+```
+
+`--overwrite` removes existing file and symlink targets for configured Stow
+packages before running Stow. It does not remove directory targets.
 
 Set up the optional Treemux sidebar with:
 

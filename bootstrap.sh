@@ -18,6 +18,7 @@ Runs the shell setup bootstrap scripts in order:
 Options:
   -n, --dry-run   Print planned commands without changing files
       --adopt     Pass --adopt to GNU Stow when stowing packages
+      --overwrite Remove existing package-file targets before stowing
   -h, --help      Show this help message
 
 Optional environment:
@@ -28,12 +29,14 @@ Examples:
   ./bootstrap.sh --dry-run
   ./bootstrap.sh
   ./bootstrap.sh --adopt
+  ./bootstrap.sh --overwrite
   ENABLE_TREEMUX=1 ./bootstrap.sh
 EOF
 }
 
 DRY_RUN=0
 ADOPT=0
+OVERWRITE=0
 for arg in "$@"; do
   case "$arg" in
     -n|--dry-run)
@@ -41,6 +44,9 @@ for arg in "$@"; do
       ;;
     --adopt)
       ADOPT=1
+      ;;
+    --overwrite)
+      OVERWRITE=1
       ;;
     -h|--help)
       usage
@@ -54,8 +60,14 @@ for arg in "$@"; do
   esac
 done
 
+if [[ "$ADOPT" == "1" && "$OVERWRITE" == "1" ]]; then
+  printf 'bootstrap: --adopt and --overwrite cannot be used together\n' >&2
+  exit 1
+fi
+
 export DRY_RUN
 export ADOPT
+export OVERWRITE
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 scripts=(

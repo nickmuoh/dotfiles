@@ -25,7 +25,8 @@
 - `~/.bashrc` is still mostly the default Debian/Ubuntu shell startup file.
 - Bash completion is enabled when the system completion files exist.
 - `MICRO_TRUECOLOR=1` is exported, which helps micro render truecolor themes.
-- `starship`, `fzf`, `zoxide`, and `fnm` are initialized directly from `~/.bashrc`.
+- `~/.local/bin` is prepended to `PATH` from `~/.bashrc`.
+- `starship`, `fzf`, `zoxide`, and `fnm` are initialized from `~/.bashrc` when their startup files or commands are available.
 - `gh` is installed and on `PATH`, but there is no `gh` alias, completion hook, or other shell-specific setup in the Bash config.
 - `~/.bash_aliases` is sourced from `~/.bashrc` when the file exists.
 - SSH auth is initialized by `keychain` for `nick_muoh.trimble-github.ed25519` instead of starting a fresh `ssh-agent` per shell.
@@ -33,9 +34,9 @@
 
 ## Tools initialized from Bash
 
-- Starship: `eval "$(starship init bash)"`
+- Starship: `command -v starship >/dev/null 2>&1` then `eval "$(starship init bash)"`
 - fzf: `[ -f ~/.fzf.bash ] && source ~/.fzf.bash`
-- zoxide: `eval "$(zoxide init bash)"`
+- zoxide: `command -v zoxide >/dev/null 2>&1` then `eval "$(zoxide init bash)"`
 - fnm: `eval "$(fnm env --use-on-cd --shell bash)"`
 - keychain: `eval "$(keychain --quiet --eval nick_muoh.trimble-github.ed25519)"`
 - `bat` behavior is documented separately in `bat.md`
@@ -56,6 +57,6 @@
 ## Caveats
 
 - The shell config is a mix of distro defaults and personal additions; most customization lives at the bottom of `~/.bashrc`.
-- There is no separate tracked config for zoxide; its behavior currently comes from the default `zoxide init bash` output.
+- There is no separate tracked config for zoxide; when `zoxide` is on `PATH`, its behavior comes from the default `zoxide init bash` output.
 - `gh` currently behaves like a standard installed CLI binary rather than a tool with extra Bash integration.
 - `starship`, `fzf`, `zoxide`, `fnm`, and `keychain` are only initialized for interactive Bash shells.

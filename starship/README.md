@@ -8,7 +8,7 @@
 ## Installed state
 
 - Installed version: `1.22.1`
-- Bash initializes Starship with `eval "$(starship init bash)"`
+- Bash initializes Starship only when `command -v starship >/dev/null 2>&1` succeeds.
 
 ## Current state
 
@@ -29,4 +29,4 @@
 ## Caveats
 
 - This config uses many Nerd Font glyphs. Without a Nerd Font-capable terminal, prompt symbols may render incorrectly.
-- Starship is only initialized from Bash right now; other shells are not documented here.
+- Starship is only initialized from interactive Bash when `starship` is on `PATH`; other shells are not documented here.
