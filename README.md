@@ -36,6 +36,10 @@ Run bootstrap first to clone plugins and generated content, then stow the packag
 ./bootstrap.sh             # apply
 ```
 
+Bootstrap output uses `==>` section headers and indented status labels such as
+`plan`, `run`, `skip`, `get`, `unpack`, `link`, and `todo`. Colors are enabled
+only for interactive terminals. Set `NO_COLOR=1` to force plain output.
+
 If config files already exist in `$HOME`, use `--adopt` on the first stow pass:
 
 ```sh

@@ -50,4 +50,5 @@ for script in "${scripts[@]}"; do
   "${script_dir}/scripts/${script}"
 done
 
-printf '%s\n' "bootstrap complete"
+. "${script_dir}/scripts/lib.sh"
+log "Bootstrap complete"

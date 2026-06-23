@@ -71,11 +71,12 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
   case "$method" in
     deb)
       if ! command -v "$cmd" >/dev/null 2>&1; then
-        log "$cmd"
+        sublog "$cmd"
         if is_dry_run; then
-          printf '+ curl -LO %s\n' "$url"
-          printf '+ sudo dpkg -i %s\n' "$file"
+          status get "$url"
+          status plan "sudo dpkg -i $file"
         else
+          status get "$url"
           (cd /tmp && curl -LO "$url" && sudo dpkg -i "$file" && rm "$file")
         fi
       fi
@@ -83,13 +84,15 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
 
     tarball)
       if [ ! -e "$HOME/.local/opt/$extra" ]; then
-        log "$cmd"
+        sublog "$cmd"
         if is_dry_run; then
-          printf '+ curl -LO %s\n' "$url"
-          printf '+ tar -C ~/.local/opt -xzf %s\n' "$file"
-          printf '+ ln -sf ~/.local/opt/%s/bin/%s ~/.local/bin/%s\n' "$extra" "$cmd" "$cmd"
+          status get "$url"
+          status unpack "~/.local/opt/$extra"
+          status link "~/.local/bin/$cmd -> ~/.local/opt/$extra/bin/$cmd"
         else
+          status get "$url"
           (cd /tmp && curl -LO "$url" && tar -C "$HOME/.local/opt" -xzf "$file" && rm "$file")
+          status link "$HOME/.local/bin/$cmd -> $HOME/.local/opt/$extra/bin/$cmd"
           ln -sf "$HOME/.local/opt/$extra/bin/$cmd" "$HOME/.local/bin/$cmd"
         fi
       fi
@@ -97,12 +100,13 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
 
     bin)
       if [ ! -f "$HOME/.local/bin/$cmd" ]; then
-        log "$cmd"
+        sublog "$cmd"
         depth="$(echo "$extra" | tr -cd '/' | wc -c)"
         if is_dry_run; then
-          printf '+ curl -LO %s\n' "$url"
-          printf '+ tar -C ~/.local/bin --strip-components=%s -xzf %s %s\n' "$depth" "$file" "$extra"
+          status get "$url"
+          status unpack "~/.local/bin/$cmd"
         else
+          status get "$url"
           (
             cd /tmp
             curl -LO "$url"
@@ -116,11 +120,12 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
 
     direct)
       if ! command -v "$cmd" >/dev/null 2>&1; then
-        log "$cmd"
+        sublog "$cmd"
         if is_dry_run; then
-          printf '+ curl -LO %s\n' "$url"
-          printf '+ mv /tmp/%s ~/.local/bin/%s && chmod +x ~/.local/bin/%s\n' "$file" "$cmd" "$cmd"
+          status get "$url"
+          status install "~/.local/bin/$cmd"
         else
+          status get "$url"
           (cd /tmp && curl -LO "$url" && mv "$file" "$HOME/.local/bin/$cmd" && chmod +x "$HOME/.local/bin/$cmd")
         fi
       fi
@@ -138,10 +143,11 @@ SNAP_PACKAGES=(
 log "snap packages"
 for pkg in "${SNAP_PACKAGES[@]}"; do
   if ! snap list "$pkg" >/dev/null 2>&1; then
-    log "$pkg"
+    sublog "$pkg"
     if is_dry_run; then
-      printf '+ sudo snap install %s\n' "$pkg"
+      status plan "sudo snap install $pkg"
     else
+      status run "sudo snap install $pkg"
       sudo snap install "$pkg"
     fi
   fi
@@ -169,11 +175,12 @@ for entry in "${INSTALLER_TOOLS[@]}"; do
   IFS='|' read -r cmd url dest shell <<< "$entry"
   shell="${shell:-sh}"
   if ! command -v "$cmd" >/dev/null 2>&1; then
-    log "$cmd"
+    sublog "$cmd"
     if [ -n "${dest:-}" ]; then
       if is_dry_run; then
-        printf '+ (cd /tmp && curl %s | bash && sudo mv %s %s)\n' "$url" "$cmd" "$dest"
+        status plan "(cd /tmp && curl $url | bash && sudo mv $cmd $dest)"
       else
+        status run "(cd /tmp && curl $url | bash && sudo mv $cmd $dest)"
         (cd /tmp && curl "$url" | bash && sudo mv "$cmd" "$dest")
       fi
     else

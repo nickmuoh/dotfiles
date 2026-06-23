@@ -39,6 +39,19 @@ Config files are managed as GNU Stow packages. Each package directory in the rep
 - Add git-cloned or generated content to `bootstrap.sh`, not to a stow package.
 - Preview before applying: `./bootstrap.sh --dry-run`
 
+## Bootstrap logging
+
+Bootstrap scripts source `scripts/lib.sh` and use Homebrew-inspired structured logs.
+
+- Use `log "section"` for top-level `==>` sections.
+- Use `sublog "name"` for nested tool/plugin names under a section.
+- Use `status <label> "message"` for indented status lines. Existing labels include `plan`, `run`, `skip`, `get`, `unpack`, `link`, `install`, `plug`, `todo`, `done`, and `error`.
+- Use `run <cmd> ...` for ordinary commands so dry runs print `plan` and real runs print `run`.
+- Use `run_sh "command string"` only for shell pipelines or compound shell snippets.
+- Use `clone_if_missing <dest> ...` for idempotent git clones.
+- Do not print bootstrap actions with ad hoc `printf '+ ...'` or plain `echo`; route new output through `log`, `sublog`, `status`, `run`, or `run_sh`.
+- Keep color behavior centralized in `scripts/lib.sh`. Colors are enabled only for interactive terminals and can be disabled with `NO_COLOR=1`.
+
 ## Tmux safety
 
 - Never run `tmux kill-server` from inside a running session — it interrupts the current shell context.
