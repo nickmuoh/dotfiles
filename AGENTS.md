@@ -28,9 +28,14 @@ When asked to install a tool:
 
 Config files are managed as GNU Stow packages. Each package directory in the repo root mirrors its target path under `$HOME`.
 
+- Treat the package file as the source of truth, not the deployed path under `$HOME`.
+- For example, edit `tmux/.tmux.conf` in this repo instead of editing `~/.tmux.conf` directly.
+- If the deployed file is already a symlink into this repo, editing either path changes the same file, but prefer the package path for clarity.
+- Before changing a deployed config, verify the link target when needed with `ls -l <path>`.
 - To add a config file: place it in the correct package subdirectory, then stow the package.
 - Dry-run first: `stow -nv <package>`
 - Deploy: `stow -v <package>`
+- If Stow reports a conflict with a real file in `$HOME`, do not overwrite it silently; inspect the file and ask before replacing or adopting it.
 
 ## Bootstrap
 
@@ -38,6 +43,28 @@ Config files are managed as GNU Stow packages. Each package directory in the rep
 
 - Add git-cloned or generated content to `bootstrap.sh`, not to a stow package.
 - Preview before applying: `./bootstrap.sh --dry-run`
+
+## Bootstrap logging
+
+Bootstrap scripts source `scripts/lib.sh` and use Homebrew-inspired structured logs.
+
+- Use `log "section"` for top-level `==>` sections.
+- Use `sublog "name"` for nested tool/plugin names under a section.
+- Use `status <label> "message"` for indented status lines. Existing labels include `plan`, `run`, `skip`, `get`, `unpack`, `link`, `install`, `plug`, `todo`, `done`, and `error`.
+- Use `run <cmd> ...` for ordinary commands so dry runs print `plan` and real runs print `run`.
+- Use `run_sh "command string"` only for shell pipelines or compound shell snippets.
+- Use `clone_if_missing <dest> ...` for idempotent git clones.
+- Do not print bootstrap actions with ad hoc `printf '+ ...'` or plain `echo`; route new output through `log`, `sublog`, `status`, `run`, or `run_sh`.
+- Keep color behavior centralized in `scripts/lib.sh`. Colors are enabled only for interactive terminals and can be disabled with `NO_COLOR=1`.
+
+## Bootstrap error handling
+
+Bootstrap and setup scripts use `set -euo pipefail` plus shared traps from `scripts/lib.sh`.
+
+- After sourcing `scripts/lib.sh`, call `enable_error_trap` in setup scripts so failures print a structured `error` line and managed temp directories are cleaned up.
+- Use `make_temp_dir <prefix> <var_name>` for temporary download or build directories instead of ad hoc `/tmp` work. The shared `EXIT` trap removes registered temp directories.
+- If a script needs a local trap, preserve the shared cleanup and error-reporting behavior instead of replacing it silently.
+- Keep expected failures inside explicit conditionals such as `if ! command -v tool ...; then`; use `|| true` only when failure is intentionally acceptable.
 
 ## Tmux safety
 

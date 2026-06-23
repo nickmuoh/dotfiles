@@ -3,22 +3,23 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/lib.sh"
+enable_error_trap
 
-# ── apt packages ─────────────────────────────────────────────────────────────
+## [apt packages]
 # Add or remove package names here. apt handles install and future upgrades.
 APT_PACKAGES=(
   bash-completion curl git fzf bat jq yq tmux starship gh stow
-  lazygit universal-ctags libsqlite3-dev
+  lazygit universal-ctags libsqlite3-dev unzip
 )
 
-# ── github release versions ──────────────────────────────────────────────────
+## [github release versions]
 # Update the version variable here when upgrading a tool.
 # nvim uses the /latest/ GitHub redirect and does not need a pinned version.
 RG_VERSION="14.1.1"
 PANDOC_VERSION="3.10"
 KEYCHAIN_VERSION="3.0.0_beta1"
 
-# ── github release installs ──────────────────────────────────────────────────
+## [github release installs]
 # Each entry is a pipe-delimited string:  "cmd|method|url"  or  "cmd|method|url|extra"
 #
 #   cmd    — the binary name (used for the idempotency check and symlink target)
@@ -55,7 +56,7 @@ GITHUB_INSTALLS=(
   "keychain|direct|https://github.com/danielrobbins/keychain/releases/download/${KEYCHAIN_VERSION}/keychain-${KEYCHAIN_VERSION}.pyz"
 )
 
-# ── install ───────────────────────────────────────────────────────────────────
+## [install]
 
 log "apt packages"
 run sudo apt-get update
@@ -71,25 +72,32 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
   case "$method" in
     deb)
       if ! command -v "$cmd" >/dev/null 2>&1; then
-        log "$cmd"
+        sublog "$cmd"
         if is_dry_run; then
-          printf '+ curl -LO %s\n' "$url"
-          printf '+ sudo dpkg -i %s\n' "$file"
+          status get "$url"
+          status plan "sudo dpkg -i $file"
         else
-          (cd /tmp && curl -LO "$url" && sudo dpkg -i "$file" && rm "$file")
+          make_temp_dir "setup-tools-${cmd}" tmp_dir
+          status get "$url"
+          curl -L -o "$tmp_dir/$file" "$url"
+          sudo dpkg -i "$tmp_dir/$file"
         fi
       fi
       ;;
 
     tarball)
       if [ ! -e "$HOME/.local/opt/$extra" ]; then
-        log "$cmd"
+        sublog "$cmd"
         if is_dry_run; then
-          printf '+ curl -LO %s\n' "$url"
-          printf '+ tar -C ~/.local/opt -xzf %s\n' "$file"
-          printf '+ ln -sf ~/.local/opt/%s/bin/%s ~/.local/bin/%s\n' "$extra" "$cmd" "$cmd"
+          status get "$url"
+          status unpack "~/.local/opt/$extra"
+          status link "~/.local/bin/$cmd -> ~/.local/opt/$extra/bin/$cmd"
         else
-          (cd /tmp && curl -LO "$url" && tar -C "$HOME/.local/opt" -xzf "$file" && rm "$file")
+          make_temp_dir "setup-tools-${cmd}" tmp_dir
+          status get "$url"
+          curl -L -o "$tmp_dir/$file" "$url"
+          tar -C "$HOME/.local/opt" -xzf "$tmp_dir/$file"
+          status link "$HOME/.local/bin/$cmd -> $HOME/.local/opt/$extra/bin/$cmd"
           ln -sf "$HOME/.local/opt/$extra/bin/$cmd" "$HOME/.local/bin/$cmd"
         fi
       fi
@@ -97,89 +105,112 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
 
     bin)
       if [ ! -f "$HOME/.local/bin/$cmd" ]; then
-        log "$cmd"
+        sublog "$cmd"
         depth="$(echo "$extra" | tr -cd '/' | wc -c)"
         if is_dry_run; then
-          printf '+ curl -LO %s\n' "$url"
-          printf '+ tar -C ~/.local/bin --strip-components=%s -xzf %s %s\n' "$depth" "$file" "$extra"
+          status get "$url"
+          status unpack "~/.local/bin/$cmd"
         else
-          (
-            cd /tmp
-            curl -LO "$url"
-            tar -C "$HOME/.local/bin" --strip-components="$depth" -xzf "$file" "$extra"
-            chmod +x "$HOME/.local/bin/$cmd"
-            rm "$file"
-          )
+          make_temp_dir "setup-tools-${cmd}" tmp_dir
+          status get "$url"
+          curl -L -o "$tmp_dir/$file" "$url"
+          tar -C "$HOME/.local/bin" --strip-components="$depth" -xzf "$tmp_dir/$file" "$extra"
+          chmod +x "$HOME/.local/bin/$cmd"
         fi
       fi
       ;;
 
     direct)
       if ! command -v "$cmd" >/dev/null 2>&1; then
-        log "$cmd"
+        sublog "$cmd"
         if is_dry_run; then
-          printf '+ curl -LO %s\n' "$url"
-          printf '+ mv /tmp/%s ~/.local/bin/%s && chmod +x ~/.local/bin/%s\n' "$file" "$cmd" "$cmd"
+          status get "$url"
+          status install "~/.local/bin/$cmd"
         else
-          (cd /tmp && curl -LO "$url" && mv "$file" "$HOME/.local/bin/$cmd" && chmod +x "$HOME/.local/bin/$cmd")
+          make_temp_dir "setup-tools-${cmd}" tmp_dir
+          status get "$url"
+          curl -L -o "$tmp_dir/$file" "$url"
+          mv "$tmp_dir/$file" "$HOME/.local/bin/$cmd"
+          chmod +x "$HOME/.local/bin/$cmd"
         fi
       fi
       ;;
   esac
 done
 
-# ── snap packages ─────────────────────────────────────────────────────────────
-# Add package names here. snap handles install and updates.
+## [snap packages]
+# Add package entries here. snap handles install and updates.
+# Format: "pkg" or "pkg|flags"
 # Skipped when: snap list <pkg> already succeeds.
 SNAP_PACKAGES=(
   difftastic
+  "aws-cli|--classic"
 )
 
 log "snap packages"
-for pkg in "${SNAP_PACKAGES[@]}"; do
+for entry in "${SNAP_PACKAGES[@]}"; do
+  IFS='|' read -r pkg flags <<< "$entry"
   if ! snap list "$pkg" >/dev/null 2>&1; then
-    log "$pkg"
+    sublog "$pkg"
+    snap_args=("$pkg")
+    if [ -n "${flags:-}" ]; then
+      read -r -a snap_flags <<< "$flags"
+      snap_args+=("${snap_flags[@]}")
+    fi
+    install_cmd="$(command_string sudo snap install "${snap_args[@]}")"
     if is_dry_run; then
-      printf '+ sudo snap install %s\n' "$pkg"
+      status plan "$install_cmd"
     else
-      sudo snap install "$pkg"
+      status run "$install_cmd"
+      sudo snap install "${snap_args[@]}"
     fi
   fi
 done
 
-# ── installer scripts ─────────────────────────────────────────────────────────
+## [installer scripts]
 # Tools installed via their own installer scripts.
 #
-#   "cmd|url"       — installer runs itself to completion and adds cmd to PATH
-#   "cmd|url|dest"  — installer drops the binary in CWD; it is then moved to dest
-#                     (used when the installer doesn't self-install, e.g. getmic.ro)
+#   "cmd|url"                    — installer runs with sh and adds cmd to PATH
+#   "cmd|url|dest"               — installer runs with bash, drops the binary in CWD,
+#                                  and moves it to dest (e.g. getmic.ro)
+#   "cmd|url||shell"             — installer runs with the named shell and adds cmd
+#                                  to PATH
+#   "cmd|url||shell|shell_args"  — installer runs with the named shell and args
 #
 # Skipped when: command -v <cmd> succeeds.
 INSTALLER_TOOLS=(
   "zoxide|https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh"
   "uv|https://astral.sh/uv/install.sh"
+  "fnm|https://fnm.vercel.app/install||bash|-s -- --skip-shell"
   "micro|https://getmic.ro|/usr/bin/micro"
-  "gh-copilot|https://gh.io/copilot-install"
+  "gh-copilot|https://gh.io/copilot-install||bash"
 )
 
 log "installer scripts"
 for entry in "${INSTALLER_TOOLS[@]}"; do
-  IFS='|' read -r cmd url dest <<< "$entry"
+  IFS='|' read -r cmd url dest shell shell_args <<< "$entry"
+  shell="${shell:-sh}"
   if ! command -v "$cmd" >/dev/null 2>&1; then
-    log "$cmd"
+    sublog "$cmd"
     if [ -n "${dest:-}" ]; then
       if is_dry_run; then
-        printf '+ (cd /tmp && curl %s | bash && sudo mv %s %s)\n' "$url" "$cmd" "$dest"
+        status plan "(cd \"\$(mktemp -d)\" && curl $url | bash && sudo mv $cmd $dest)"
       else
-        (cd /tmp && curl "$url" | bash && sudo mv "$cmd" "$dest")
+        make_temp_dir "setup-tools-${cmd}" tmp_dir
+        status run "(cd $(printf '%q' "$tmp_dir") && curl $url | bash && sudo mv $cmd $dest)"
+        (cd "$tmp_dir" && curl "$url" | bash && sudo mv "$cmd" "$dest")
       fi
     else
-      run_sh "curl -sSfL $url | sh"
+      if [ -n "${shell_args:-}" ]; then
+        run_sh "curl -fsSL $url | $shell $shell_args"
+      else
+        run_sh "curl -sSfL $url | $shell"
+      fi
     fi
   fi
 done
 
-# ── fzf ───────────────────────────────────────────────────────────────────────
+## [fzf]
 # Installed via git clone + bundled install script (not a pipe-to-sh installer).
 clone_if_missing "$HOME/.fzf" --depth 1 https://github.com/junegunn/fzf.git
 if [ ! -f "$HOME/.fzf.bash" ]; then
