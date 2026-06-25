@@ -55,7 +55,7 @@ apt_package_installed() {
 # Add or remove package names here. apt handles install and future upgrades.
 APT_PACKAGES=(
   bash-completion curl git fzf bat jq yq tmux starship gh stow
-  lazygit universal-ctags libsqlite3-dev unzip
+  lazygit universal-ctags unzip libpq-dev libsqlite3-dev python3-dev gcc
 )
 
 ## [github release versions]
