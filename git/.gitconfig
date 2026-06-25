@@ -36,6 +36,3 @@
     dshow = -c diff.external=difft show --ext-diff
     # Run `git diff` with difftastic.
     difft = -c diff.external=difft diff
-[user]
-	email = nick_muoh@trimble.com
-	name = Nick Muoh
