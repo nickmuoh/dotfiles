@@ -135,6 +135,15 @@ export PATH="$HOME/.local/bin:$PATH"
 #
 # fnm
 #
+FNM_PATH="$HOME/.fnm"
+
+if [ -d "$FNM_PATH" ]; then
+    case ":$PATH:" in
+        *":$FNM_PATH:"*) ;;
+        *) export PATH="$FNM_PATH:$PATH" ;;
+    esac
+fi
+
 if command -v fnm >/dev/null 2>&1; then
     eval "$(fnm env --use-on-cd --shell bash)"
 fi

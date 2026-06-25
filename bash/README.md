@@ -6,6 +6,7 @@
 - `~/.bash_aliases`
 - `~/.config/starship.toml`
 - `~/.fzf.bash`
+- `~/.fnm/` — managed by the `fnm` stow package
 - `~/.local/bin/keychain`
 - `~/.local/share/fnm/`
 
@@ -26,6 +27,7 @@
 - Bash completion is enabled when the system completion files exist.
 - `MICRO_TRUECOLOR=1` is exported, which helps micro render truecolor themes.
 - `~/.local/bin` is prepended to `PATH` from `~/.bashrc`.
+- `~/.bashrc` adds `~/.fnm` to `PATH` before initializing fnm.
 - `starship`, `fzf`, `zoxide`, and `fnm` are initialized from `~/.bashrc` when their startup files or commands are available.
 - `gh` is installed and on `PATH`, but there is no `gh` alias, completion hook, or other shell-specific setup in the Bash config.
 - `~/.bash_aliases` is sourced from `~/.bashrc` when the file exists.
@@ -37,7 +39,7 @@
 - Starship: `command -v starship >/dev/null 2>&1` then `eval "$(starship init bash)"`
 - fzf: `[ -f ~/.fzf.bash ] && source ~/.fzf.bash`
 - zoxide: `command -v zoxide >/dev/null 2>&1` then `eval "$(zoxide init bash)"`
-- fnm: `eval "$(fnm env --use-on-cd --shell bash)"`
+- fnm: add `FNM_PATH` to `PATH` when it exists, then `eval "$(fnm env --use-on-cd --shell bash)"`
 - keychain: `eval "$(keychain --quiet --eval nick_muoh.trimble-github.ed25519)"`
 - `bat` behavior is documented separately in `bat.md`
 
@@ -49,7 +51,7 @@
 - `~/.fzf/install`
 - `curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh`
 - `curl -fsSL https://gh.io/copilot-install | bash`
-- `curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell`
+- `curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell --install-dir "$HOME/.fnm"`
 - `curl -fsSL https://raw.githubusercontent.com/danielrobbins/keychain/2b3c181eaa73ca27b0cfa3fd12148d6b69e35311/keychain.sh -o ~/.local/bin/keychain`
 - `curl -fsSL https://raw.githubusercontent.com/danielrobbins/keychain/2b3c181eaa73ca27b0cfa3fd12148d6b69e35311/completions/keychain.bash -o ~/.local/share/bash-completion/completions/keychain`
 - multiple `source ~/.bashrc` runs after edits
