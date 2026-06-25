@@ -15,5 +15,5 @@
 *.swo
 *.tmp
 
-# Micro Buffer files
-micro/buffers/*
+# Micro buffer runtime state
+micro/.config/micro/buffers/
