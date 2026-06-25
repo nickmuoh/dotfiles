@@ -37,3 +37,5 @@
     dshow = -c diff.external=difft show --ext-diff
     # Run `git diff` with difftastic.
     difft = -c diff.external=difft diff
+[maintenance]
+	repo = /home/nmuoh/Developer/_SketchUp/sbd-legionrepo-git
