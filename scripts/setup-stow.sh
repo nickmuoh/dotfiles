@@ -40,7 +40,7 @@ if ! is_dry_run; then
 fi
 
 repo_root="$(bootstrap_root)"
-packages=(bash micro tmux nvim starship fzf local-bin bash-completions)
+packages=(bash micro tmux nvim starship fzf fnm local-bin bash-completions)
 
 if [[ "${ADOPT:-0}" == "1" && "${OVERWRITE:-0}" == "1" ]]; then
   die "--adopt and --overwrite cannot be used together"
