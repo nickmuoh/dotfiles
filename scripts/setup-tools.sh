@@ -261,7 +261,7 @@ done
 INSTALLER_TOOLS=(
   "zoxide|https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh"
   "uv|https://astral.sh/uv/install.sh"
-  "fnm|https://fnm.vercel.app/install||bash|-s -- --skip-shell"
+  "fnm|https://fnm.vercel.app/install||bash|-s -- --skip-shell --install-dir \"$HOME/.fnm\""
   "micro|https://getmic.ro|/usr/bin/micro"
   "copilot|https://gh.io/copilot-install||bash"
 )

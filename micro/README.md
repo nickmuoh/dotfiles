@@ -11,6 +11,11 @@
 - `~/.config/micro/colorschemes/nord-tc-light.micro`
 - `~/.config/micro/plug/`
 
+## Local runtime state
+
+- `~/.config/micro/buffers/`
+- `~/.config/micro/buffers/history` is local buffer history runtime state and is not tracked in Git or deployed by Stow
+
 ## Installed plugins observed on disk
 
 - `fzfinder`

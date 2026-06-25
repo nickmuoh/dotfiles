@@ -2,5 +2,5 @@
 ^docs/
 ^plug/$
 ^plug/.*
-^buffers/.*
-
+^.config/micro/buffers/$
+^.config/micro/buffers/.*

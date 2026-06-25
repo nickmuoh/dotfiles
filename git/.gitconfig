@@ -8,6 +8,7 @@
 [core]
     editor = nvim
     autocrlf = input
+	fileMode = false
 
 [init]
     defaultBranch = main
