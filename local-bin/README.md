@@ -2,7 +2,7 @@
 
 ## Contents
 
-- `~/.local/bin/keychain`
+- `~/.local/bin/difft` (wrapper for `difftastic`)
 
 ## Notes
 
