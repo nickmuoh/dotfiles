@@ -56,6 +56,7 @@ apt_package_installed() {
 APT_PACKAGES=(
   bash-completion curl git fd-find fzf bat jq yq tmux starship gh stow
   lazygit universal-ctags unzip libpq-dev libsqlite3-dev python3-dev gcc
+  gnome-keyring libsecret-1-0 xdg-utils
 )
 
 ## [github release versions]
@@ -324,7 +325,7 @@ if command_exists fdfind; then
   else
     status skip "fd symlink already set up"
   fi
-  
+
   # Generate bash completions
   completions_dir="$HOME/.local/share/bash-completion/completions"
   if [ ! -f "$completions_dir/fd" ] || should_reinstall_tools; then
@@ -341,4 +342,3 @@ if command_exists fdfind; then
 else
   status skip "fd (fdfind) not installed"
 fi
-

@@ -28,6 +28,7 @@
 
 - tmux uses `default-terminal "tmux-256color"`.
 - `terminal-features` enables RGB/truecolor for `tmux-256color` and `xterm-256color`.
+- `update-environment` copies `DBUS_SESSION_BUS_ADDRESS`, `GNOME_KEYRING_CONTROL`, and `XDG_RUNTIME_DIR` from the attaching client so Copilot and other Secret Service clients can see the user keyring inside tmux.
 - Mouse mode is enabled.
 - Window and pane numbering both start at `1`.
 - Windows are renumbered automatically.
@@ -84,6 +85,7 @@ Related paths:
 - `tmux -n wsl`
 - `tmux new wsl`
 - `tmux source-file ~/.tmux.conf`
+- If tmux was already running before the keyring session started, detach and reattach from a shell that already has the keyring env, or restart the tmux server so the updated environment is picked up.
 
 No explicit TPM install command was found in `~/.bash_history`, but the plugin directories exist under `~/.tmux/plugins`.
 

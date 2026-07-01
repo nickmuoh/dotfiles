@@ -122,7 +122,7 @@ export PATH="$HOME/.local/bin:$PATH"
 # SSH
 #
 if command -v keychain >/dev/null 2>&1; then
-    # keychain v3: --quiet suppresses non-error output (passphrase prompts still use terminal)
+    # keychain v3: SSH auth only; --quiet suppresses non-error output (passphrase prompts still use terminal)
     eval "$(keychain add --quiet --eval "$HOME/.ssh/nick_muoh.trimble-github.ed25519")"
 fi
 
