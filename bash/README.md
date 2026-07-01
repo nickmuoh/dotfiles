@@ -26,7 +26,7 @@
 - `~/.bashrc` is still mostly the default Debian/Ubuntu shell startup file.
 - Bash completion is enabled when the system completion files exist.
 - `MICRO_TRUECOLOR=1` is exported, which helps micro render truecolor themes.
-- `~/.local/bin` is prepended to `PATH` from `~/.bashrc`.
+- `~/.local/bin` is prepended to `PATH` from `~/.bashrc` before the `keychain` startup block runs.
 - `~/.bashrc` adds `~/.fnm` to `PATH` before initializing fnm.
 - `starship`, `fzf`, `zoxide`, and `fnm` are initialized from `~/.bashrc` when their startup files or commands are available.
 - `gh` is installed and on `PATH`, but there is no `gh` alias, completion hook, or other shell-specific setup in the Bash config.
