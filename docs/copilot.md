@@ -13,3 +13,5 @@ curl -sSfL https://gh.io/copilot-install | bash
 ## Config directory
 
 `~/.copilot/` — runtime state lives here (session DB, logs, OAuth tokens) and is not tracked. `settings.json` and `mcp-config.json` are managed by the `copilot` stow package in this repo.
+
+Bootstrap also installs `gnome-keyring` and `libsecret-1-0` so Copilot can use the system vault on Linux/WSL.
