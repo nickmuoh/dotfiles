@@ -1,0 +1,15 @@
+[project]
+name = "tmux-cpu-mem-monitor"
+version = "1.0.0"
+description = "tmux CPU and memory monitor plugin"
+requires-python = ">=3.12"
+dependencies = ["psutil==6.0.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[tool.ruff]
+output-format = "github"
+
+[tool.ruff.lint]
+select = ["I"]
