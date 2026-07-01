@@ -18,6 +18,7 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 - [snowflake](snowflake/README.md)
 - [agents](agents/README.md)
 - [fnm](fnm/README.md)
+- [tmux-cpu-mem-monitor](tmux-cpu-mem-monitor/README.md)
 
 ## Root docs
 
@@ -31,7 +32,7 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 
 - Root docs stay at the repo root and are never stowed
 - Package docs live beside their package config in `<package>/README.md`
-- Generated/plugin content belongs in `bootstrap.sh`, not in Stow packages
+- Generated content belongs in `bootstrap.sh`; vendored tool source can also live in a dedicated Stow package
 
 ## Working with Stow
 

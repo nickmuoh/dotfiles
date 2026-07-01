@@ -10,6 +10,7 @@
 - `~/.tmux/plugins/tmux-autoreload`
 - `~/.tmux/plugins/tmux-prefix-highlight`
 - `~/.tmux/plugins/tmux-mighty-scroll`
+- `~/.tmux/plugins/tmux-cpu-mem-monitor`
 - `/home/nmuoh/.tmux/plugins/treemux/configs/treemux_init.lua`
 
 ## Installed plugins
@@ -21,7 +22,7 @@
 - `b0o/tmux-autoreload`
 - `tmux-plugins/tmux-prefix-highlight`
 - `noscript/tmux-mighty-scroll`
-- `hendrikmi/tmux-cpu-mem-monitor`
+- `tmux-cpu-mem-monitor` (vendored fork, stowed from this repo)
 
 ## Current state
 
@@ -33,8 +34,9 @@
 - The right side of the status line keeps Nord separators/colors and shows prefix state plus CPU and memory usage with plugin icons (`` CPU, `` MEM), with date/time/host removed.
 - `tmux-menus` is installed through TPM and opens popup menus with `<prefix> \` by default.
 - Treemux is the tmux-side plugin layer that connects tmux with a Neovim tree client; in this setup it is configured to use `nvim-tree` and a Python interpreter at `/home/nmuoh/.local/share/treemux-venv/bin/python` created by `uv`.
-- `tmux-cpu-mem-monitor` is a locally customized checkout, not a vanilla upstream install. Its `tmux_cpu_mem_monitor.tmux` wrapper runs `uv sync` and rewrites placeholders for `cpu`, `mem`, `disk`, and `battery` with `uv run --project ... src/*.py`.
-- The tmux config still wraps the status fragments in user options (`@cpu_mem_plugin_dir`, `@cpu_cmd`, `@mem_cmd`, style fragments) and expands them with `#{E:@name}` so `status-right` stays readable.
+- `tmux-cpu-mem-monitor` is vendored in `tmux-cpu-mem-monitor/` and stowed to `~/.tmux/plugins/tmux-cpu-mem-monitor`.
+- Its `tmux_cpu_mem_monitor.tmux` wrapper runs `uv sync` and rewrites placeholders for `cpu`, `mem`, `disk`, and `battery` with `uv run --project ... src/*.py`.
+- The tmux config keeps the CPU/MEM commands in user options (`@cpu_mem_plugin_dir`, `@cpu_cmd`, `@mem_cmd`, style fragments) and expands them with `#{E:@name}` so `status-right` stays readable.
 - TPM is initialized at the end of the file, which is the correct tmux plugin pattern.
 
 ## Treemux shortcuts
@@ -65,15 +67,14 @@ Related paths:
 
 ## `tmux-cpu-mem-monitor` custom installation decisions
 
-1. Keep the plugin managed by TPM (`set -g @plugin 'hendrikmi/tmux-cpu-mem-monitor'`) so updates stay in the normal tmux plugin flow.
-2. Preserve the local `tmux_cpu_mem_monitor.tmux` wrapper if you reinstall or refresh the plugin; it is what adds the `disk` and `battery` placeholder handling and the `uv sync` step.
+1. Keep the fork in the `tmux-cpu-mem-monitor` Stow package so it stays versioned with this repo.
+2. Preserve the local `tmux_cpu_mem_monitor.tmux` wrapper if you reinstall or refresh the package; it is what adds the `disk` and `battery` placeholder handling and the `uv sync` step.
 3. Use `uv` for dependency execution instead of relying on system `venv`/`pip`, based on issue #11 behavior and local Python environment constraints.
-4. Add a project dependency declaration in the plugin at `~/.tmux/plugins/tmux-cpu-mem-monitor/pyproject.toml` with `psutil==6.0.0`.
-5. Keep date/time/hostname removed from `status-right` and replace with CPU/MEM only.
-6. Keep Nord look-and-feel by reusing Nord separators and color blocks in `status-right`.
-7. Use plugin icons in the segment (`` for CPU, `` for MEM).
-8. Keep the tmux config DRY by storing reusable command/style fragments in user options and expanding them with `#{E:@name}`.
-9. Reload tmux safely with `tmux source-file ~/.tmux.conf` (do not kill tmux server from inside a running tmux session).
+4. Keep date/time/hostname removed from `status-right` and replace with CPU/MEM only.
+5. Keep Nord look-and-feel by reusing Nord separators and color blocks in `status-right`.
+6. Use plugin icons in the segment (`` for CPU, `` for MEM).
+7. Keep the tmux config DRY by storing reusable command/style fragments in user options and expanding them with `#{E:@name}`.
+8. Reload tmux safely with `tmux source-file ~/.tmux.conf` (do not kill tmux server from inside a running tmux session).
 
 ## History-backed setup notes
 
