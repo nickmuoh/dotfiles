@@ -30,8 +30,10 @@
 - `terminal-features` enables RGB/truecolor for `tmux-256color` and `xterm-256color`.
 - `update-environment` copies `DBUS_SESSION_BUS_ADDRESS`, `GNOME_KEYRING_CONTROL`, and `XDG_RUNTIME_DIR` from the attaching client so Copilot and other Secret Service clients can see the user keyring inside tmux.
 - Mouse mode is enabled.
+- The prefix key is `Ctrl-A`.
 - Window and pane numbering both start at `1`.
 - Windows are renumbered automatically.
+- The status bar is positioned at the top.
 - The right side of the status line keeps Nord separators/colors and shows prefix state plus CPU and memory usage with plugin icons (`` CPU, `` MEM), with date/time/host removed.
 - `tmux-menus` is installed through TPM and opens popup menus with `<prefix> \` by default.
 - Treemux is the tmux-side plugin layer that connects tmux with a Neovim tree client; in this setup it is configured to use `nvim-tree` and a Python interpreter at `/home/nmuoh/.local/share/treemux-venv/bin/python` created by `uv`.
@@ -47,6 +49,7 @@ configured from `~/.tmux.conf`, not from the main LazyVim config.
 
 - `prefix + Tab` — toggle the tree sidebar
 - `prefix + Backspace` — toggle the tree sidebar and focus it
+- `Ctrl-W` — open the layout pane-control menu
 - `Enter` — open in treemux
 - `l` — open in treemux
 - `Ctrl-t` — open in treemux
