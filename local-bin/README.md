@@ -3,6 +3,7 @@
 ## Contents
 
 - `~/.local/bin/difft` (wrapper for `difftastic`)
+- `~/.local/bin/gh-browser` (browser opener used by `gh auth login`)
 
 ## Notes
 

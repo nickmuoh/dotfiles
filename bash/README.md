@@ -9,6 +9,8 @@
 - `~/.fnm/` — managed by the `fnm` stow package
 - `~/.local/bin/keychain`
 - `~/.local/share/fnm/`
+- `~/.local/bin/gh-browser`
+- `BROWSER` is exported from `~/.bashrc` when `gh-browser` is available
 
 ## Aliases from `~/.bash_aliases`
 
@@ -29,7 +31,8 @@
 - `~/.local/bin` is prepended to `PATH` from `~/.bashrc` before the `keychain` startup block runs.
 - `~/.bashrc` adds `~/.fnm` to `PATH` before initializing fnm.
 - `starship`, `fzf`, `zoxide`, and `fnm` are initialized from `~/.bashrc` when their startup files or commands are available.
-- `gh` is installed and on `PATH`, but there is no `gh` alias, completion hook, or other shell-specific setup in the Bash config.
+- `gh` is installed and on `PATH`; `gh-browser` handles auth login browser launches, but there is no `gh` alias or completion hook in the Bash config.
+- `gh auth login` uses `gh-browser` through the `BROWSER` environment variable.
 - `~/.bash_aliases` is sourced from `~/.bashrc` when the file exists.
 - SSH auth is initialized by `keychain` for `nick_muoh.trimble-github.ed25519` instead of starting a fresh `ssh-agent` per shell.
 - Keychain stays in `~/.bashrc` here on purpose so tmux panes and nested interactive shells inherit the agent setup; if you prefer strict login-shell behavior, put the eval in `~/.bash_profile` and source `~/.bashrc` from there.
@@ -41,6 +44,7 @@
 - zoxide: `command -v zoxide >/dev/null 2>&1` then `eval "$(zoxide init bash)"`
 - fnm: add `FNM_PATH` to `PATH` when it exists, then `eval "$(fnm env --use-on-cd --shell bash)"`
 - keychain: `eval "$(keychain --quiet --eval nick_muoh.trimble-github.ed25519)"`
+- gh-browser: a small helper that prefers `wslview`, then `xdg-open`, then `explorer.exe`, then `cmd.exe /c start`
 - `bat` behavior is documented separately in `bat.md`
 
 ## History-backed setup notes
