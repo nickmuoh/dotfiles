@@ -37,6 +37,32 @@
 - The tmux config still wraps the status fragments in user options (`@cpu_mem_plugin_dir`, `@cpu_cmd`, `@mem_cmd`, style fragments) and expands them with `#{E:@name}` so `status-right` stays readable.
 - TPM is initialized at the end of the file, which is the correct tmux plugin pattern.
 
+## Treemux shortcuts
+
+Treemux is the tmux-side tree sidebar. It runs in a separate Neovim process and is
+configured from `~/.tmux.conf`, not from the main LazyVim config.
+
+- `prefix + Tab` — toggle the tree sidebar
+- `prefix + Backspace` — toggle the tree sidebar and focus it
+- `Enter` — open in treemux
+- `l` — open in treemux
+- `Ctrl-t` — open in treemux
+- Double-click — open in treemux
+- `v` — vertical split in treemux
+- `Ctrl-v` — vertical split in treemux
+- `Ctrl-x` — horizontal split in treemux
+- `o` — open in the main pane without a tmux split
+- `h` — close/collapse the current node
+- `u` — change root upward
+- `F1` — show node info
+- `Space o` — toggle between `nvim-tree` and `oil.nvim`
+
+Related paths:
+
+- `~/.tmux.conf`
+- `~/.tmux/plugins/treemux/configs/treemux_init.lua`
+- `G:\My Drive\NMUOH-US-LE\.tmux\treemux-shortcuts.md`
+
 ## `tmux-cpu-mem-monitor` custom installation decisions
 
 1. Keep the plugin managed by TPM (`set -g @plugin 'hendrikmi/tmux-cpu-mem-monitor'`) so updates stay in the normal tmux plugin flow.
