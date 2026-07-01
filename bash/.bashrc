@@ -118,6 +118,11 @@ fi
 
 export PATH="$HOME/.local/bin:$PATH"
 
+# Prefer a browser helper that gh can launch directly.
+if command -v gh-browser >/dev/null 2>&1; then
+    export BROWSER=gh-browser
+fi
+
 #
 # SSH
 #

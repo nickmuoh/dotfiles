@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+url="${1:-}"
+if [ -z "$url" ]; then
+  printf 'gh-browser: missing URL\n' >&2
+  exit 1
+fi
+
+if command -v wslview >/dev/null 2>&1; then
+  exec wslview "$url"
+fi
+
+if command -v xdg-open >/dev/null 2>&1; then
+  exec xdg-open "$url"
+fi
+
+if command -v explorer.exe >/dev/null 2>&1; then
+  exec explorer.exe "$url"
+fi
+
+if command -v cmd.exe >/dev/null 2>&1; then
+  exec cmd.exe /c start "" "$url"
+fi
+
+printf 'gh-browser: no browser opener found for %s\n' "$url" >&2
+exit 1
