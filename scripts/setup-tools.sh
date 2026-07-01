@@ -54,7 +54,7 @@ apt_package_installed() {
 ## [apt packages]
 # Add or remove package names here. apt handles install and future upgrades.
 APT_PACKAGES=(
-  bash-completion curl git fzf bat jq yq tmux starship gh stow
+  bash-completion curl git fd-find fzf bat jq yq tmux starship gh stow
   lazygit universal-ctags unzip libpq-dev libsqlite3-dev python3-dev gcc
 )
 
@@ -309,3 +309,36 @@ else
     run_sh "$HOME/.fzf/install --all --no-update-rc"
   fi
 fi
+
+## [fd]
+# Post-install setup: symlink fd to fdfind and generate bash completions.
+if command_exists fdfind; then
+  sublog "fd"
+  # Create symlink
+  if [ ! -L "$HOME/.local/bin/fd" ] || [ "$(readlink "$HOME/.local/bin/fd")" != "/usr/bin/fdfind" ]; then
+    if is_dry_run; then
+      status plan "ln -sf /usr/bin/fdfind ~/.local/bin/fd"
+    else
+      run ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
+    fi
+  else
+    status skip "fd symlink already set up"
+  fi
+  
+  # Generate bash completions
+  completions_dir="$HOME/.local/share/bash-completion/completions"
+  if [ ! -f "$completions_dir/fd" ] || should_reinstall_tools; then
+    if is_dry_run; then
+      status plan "mkdir -p $completions_dir && fdfind --gen-completions bash > $completions_dir/fd"
+    else
+      run mkdir -p "$completions_dir"
+      status run "fdfind --gen-completions bash > $completions_dir/fd"
+      fdfind --gen-completions bash > "$completions_dir/fd"
+    fi
+  else
+    status skip "fd completions already installed"
+  fi
+else
+  status skip "fd (fdfind) not installed"
+fi
+
