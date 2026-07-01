@@ -116,6 +116,8 @@ if ! shopt -oq posix; then
   fi
 fi
 
+export PATH="$HOME/.local/bin:$PATH"
+
 #
 # SSH
 #
@@ -130,7 +132,6 @@ fi
 export MICRO_TRUECOLOR=1
 export WINHOME="/mnt/c/Users/nmuoh"
 export TMPDIR="/home/nmuoh/tmp"
-export PATH="$HOME/.local/bin:$PATH"
 
 #
 # fnm
@@ -168,3 +169,6 @@ fi
 if command -v zoxide >/dev/null 2>&1; then
     eval "$(zoxide init bash)"
 fi
+
+# Pi
+export PATH="/home/nmuoh/.local/share/fnm/node-versions/v24.18.0/installation/bin:$PATH"

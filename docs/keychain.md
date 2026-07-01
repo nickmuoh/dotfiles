@@ -16,6 +16,7 @@ Installed as a Python zipapp (`.pyz`) via `setup-tools.sh` `GITHUB_INSTALLS`:
 - `~/.bashrc` — shell startup eval block
 - `~/.keychain/` — runtime env files written by keychain per hostname
 - `~/.local/share/bash-completion/completions/keychain` — bash completion (stow-tracked)
+- `~/.local/bin/keychain` — must be on `PATH` before Bash reaches the SSH block
 
 ## Current state
 
@@ -29,6 +30,7 @@ eval "$(keychain add --quiet --eval "$HOME/.ssh/nick_muoh.trimble-github.ed25519
 - `--eval` — emit `SSH_AUTH_SOCK`/`SSH_AGENT_PID` exports for `eval`
 - `--quiet` — suppress non-error output; no startup banner (WSL-appropriate)
 - Passphrase prompts still appear in the terminal if the key is locked
+- `~/.local/bin` is exported before this block so Bash can resolve the zipapp during startup
 
 ## Key commands (v3)
 
