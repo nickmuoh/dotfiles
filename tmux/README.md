@@ -49,19 +49,17 @@ configured from `~/.tmux.conf`, not from the main LazyVim config.
 
 - `prefix + Tab` — toggle the tree sidebar
 - `prefix + Backspace` — toggle the tree sidebar and focus it
-- `Ctrl-W` — open the layout pane-control menu
-- `Enter` — open in treemux
-- `l` — open in treemux
-- `Ctrl-t` — open in treemux
-- Double-click — open in treemux
-- `v` — vertical split in treemux
-- `Ctrl-v` — vertical split in treemux
+- `R` — refresh the tree
+- `Enter` / `l` / `Ctrl-t` / double-click — open in treemux
+- `v` / `Ctrl-v` — vertical split in treemux
 - `Ctrl-x` — horizontal split in treemux
 - `o` — open in the main pane without a tmux split
 - `h` — close/collapse the current node
 - `u` — change root upward
 - `F1` — show node info
 - `Space o` — toggle between `nvim-tree` and `oil.nvim`
+
+Treemux is currently configured to use `nvim-tree`, and `nvim-tree` also refreshes automatically when directory changes are detected.
 
 Related paths:
 
