@@ -11,7 +11,7 @@
 - `~/.tmux/plugins/tmux-prefix-highlight`
 - `~/.tmux/plugins/tmux-mighty-scroll`
 - `~/.tmux/plugins/tmux-cpu-mem-monitor`
-- `/home/nmuoh/.tmux/plugins/treemux/configs/treemux_init.lua`
+- `treemux/.tmux/plugins/treemux/configs/treemux_init.lua`
 
 ## Installed plugins
 
@@ -61,8 +61,8 @@ configured from `~/.tmux.conf`, not from the main LazyVim config.
 
 Treemux is currently configured to use `nvim-tree`. The sidebar config enables
 filesystem watchers and reload-on-bufenter, so external file/dir changes are
-picked up automatically in addition to `R`. `scripts/setup-treemux.sh` installs
-that config from `scripts/treemux_init.lua` on every bootstrap run.
+picked up automatically in addition to `R`. The config is stowed from
+`treemux/.tmux/plugins/treemux/configs/treemux_init.lua`.
 
 Related paths:
 

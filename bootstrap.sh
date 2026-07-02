@@ -23,7 +23,7 @@ Options:
   -h, --help             Show this help message
 
 Optional environment:
-  ENABLE_TREEMUX=1  Create the Treemux Python venv and install neovim
+  ENABLE_TREEMUX=0  Skip Treemux setup
   NO_COLOR=1        Disable colored bootstrap output
 
 Examples:
@@ -32,7 +32,7 @@ Examples:
   ./bootstrap.sh --adopt
   ./bootstrap.sh --overwrite
   ./bootstrap.sh --reinstall-tools
-  ENABLE_TREEMUX=1 ./bootstrap.sh
+  ENABLE_TREEMUX=0 ./bootstrap.sh
 EOF
 }
 
@@ -75,6 +75,8 @@ export DRY_RUN
 export ADOPT
 export OVERWRITE
 export REINSTALL_TOOLS
+: "${ENABLE_TREEMUX:=1}"
+export ENABLE_TREEMUX
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 scripts=(

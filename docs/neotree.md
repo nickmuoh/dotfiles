@@ -44,8 +44,8 @@ file-tree plugin. File navigation in the main editor uses Telescope.
 ## Treemux init file
 
 `~/.tmux/plugins/treemux/configs/treemux_init.lua` — the Neovim config for the
-sidebar process. It is installed by `scripts/setup-treemux.sh` from the tracked
-source file `scripts/treemux_init.lua` on every bootstrap run.
+sidebar process. It is stowed from `treemux/.tmux/plugins/treemux/configs/treemux_init.lua`
+on every bootstrap run.
 
 ## Keybindings (default)
 

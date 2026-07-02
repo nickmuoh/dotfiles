@@ -6,6 +6,7 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 
 - [bash](bash/README.md)
 - [tmux](tmux/README.md)
+- [treemux](treemux/README.md)
 - [micro](micro/README.md)
 - [nvim](nvim/README.md)
 - [starship](starship/README.md)
@@ -117,10 +118,10 @@ tools before doing network install work. To reinstall or refresh tools, run:
 ./bootstrap.sh --reinstall-tools
 ```
 
-Set up the optional Treemux sidebar with:
+Treemux is enabled by default. Disable it with:
 
 ```sh
-ENABLE_TREEMUX=1 ./bootstrap.sh
+ENABLE_TREEMUX=0 ./bootstrap.sh
 ```
 
 Bootstrap clones generated/plugin content and stows the packages listed in
