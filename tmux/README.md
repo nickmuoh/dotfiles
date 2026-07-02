@@ -38,9 +38,9 @@
 - `tmux-menus` is installed through TPM and opens popup menus with `<prefix> \` by default.
 - Treemux is the tmux-side plugin layer that connects tmux with a Neovim tree client; in this setup it is configured to use `nvim-tree` and a Python interpreter at `/home/nmuoh/.local/share/treemux-venv/bin/python` created by `uv`.
 - `tmux-cpu-mem-monitor` is vendored in `tmux-cpu-mem-monitor/` and stowed to `~/.tmux/plugins/tmux-cpu-mem-monitor`.
-- Its `tmux_cpu_mem_monitor.tmux` wrapper runs `uv sync` and rewrites placeholders for `cpu`, `mem`, `disk`, and `battery` with `uv run --project ... src/*.py`.
-- The tmux config keeps the CPU/MEM commands in user options (`@cpu_mem_plugin_dir`, `@cpu_cmd`, `@mem_cmd`, style fragments) and uses `#{prefix_highlight}` plus `#{E:@name}` expansions so `status-right` stays readable.
-- TPM is initialized at the end of the file, which is the correct tmux plugin pattern.
+- Its `tmux_cpu_mem_monitor.tmux` wrapper is the source of truth for the CPU/MEM right status segment: it builds `status-right` and rewrites the `cpu`, `mem`, `disk`, and `battery` placeholders to `uv run --project ... src/*.py` commands.
+- The tmux config keeps theme knobs for that segment (`@cpu_mem_*` and `@prefix_highlight_*`), invokes the vendored wrapper after TPM, then invokes `tmux-prefix-highlight` separately as the final rewrite step.
+- TPM is initialized before the wrapper so Nord can finish its setup first, then the CPU/MEM wrapper restores the custom status line, and `tmux-prefix-highlight` patches the final string.
 
 ## Treemux shortcuts
 
@@ -59,7 +59,10 @@ configured from `~/.tmux.conf`, not from the main LazyVim config.
 - `F1` — show node info
 - `Space o` — toggle between `nvim-tree` and `oil.nvim`
 
-Treemux is currently configured to use `nvim-tree`, and `nvim-tree` also refreshes automatically when directory changes are detected.
+Treemux is currently configured to use `nvim-tree`. The sidebar config enables
+filesystem watchers and reload-on-bufenter, so external file/dir changes are
+picked up automatically in addition to `R`. `scripts/setup-treemux.sh` installs
+that config from `scripts/treemux_init.lua` on every bootstrap run.
 
 Related paths:
 
@@ -70,12 +73,12 @@ Related paths:
 ## `tmux-cpu-mem-monitor` custom installation decisions
 
 1. Keep the fork in the `tmux-cpu-mem-monitor` Stow package so it stays versioned with this repo.
-2. Preserve the local `tmux_cpu_mem_monitor.tmux` wrapper if you reinstall or refresh the package; it is what adds the `disk` and `battery` placeholder handling and the `uv sync` step.
+2. Preserve the local `tmux_cpu_mem_monitor.tmux` wrapper if you reinstall or refresh the package; it owns the custom CPU/MEM `status-right` and the `disk`/`battery` placeholder handling.
 3. Use `uv` for dependency execution instead of relying on system `venv`/`pip`, based on issue #11 behavior and local Python environment constraints.
 4. Keep date/time/hostname removed from `status-right` and replace with CPU/MEM only.
 5. Keep Nord look-and-feel by reusing Nord separators and color blocks in `status-right`.
 6. Use plugin icons in the segment (`` for CPU, `` for MEM).
-7. Keep the tmux config DRY by storing reusable command/style fragments in user options and expanding them with `#{E:@name}`.
+7. Keep the tmux config DRY by storing only theme knobs in user options, letting the vendored wrapper assemble `status-right`, and running `tmux-prefix-highlight` separately as the last rewrite.
 8. Reload tmux safely with `tmux source-file ~/.tmux.conf` (do not kill tmux server from inside a running tmux session).
 
 ## History-backed setup notes
