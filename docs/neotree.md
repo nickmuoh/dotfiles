@@ -21,6 +21,10 @@ This is controlled by the tmux option in `~/.tmux.conf`:
 `nvim-tree-remote.nvim` is also loaded in the sidebar process — it handles the
 "open file in main editor pane" communication back to the user's active editor.
 
+The sidebar config also enables `nvim-tree` filesystem watchers, `reload_on_bufenter`,
+and `sync_root_with_cwd`, so the tree stays in sync with filesystem changes even
+when they happen outside Neovim. Manual refresh is still `R`.
+
 ## Plugin install location
 
 The sidebar Neovim shares the same `lazy.nvim` plugin directory as the main editor:
@@ -40,8 +44,8 @@ file-tree plugin. File navigation in the main editor uses Telescope.
 ## Treemux init file
 
 `~/.tmux/plugins/treemux/configs/treemux_init.lua` — the Neovim config for the
-sidebar process. Managed by the Treemux TPM plugin (cloned via `setup-tmux.sh`).
-Not tracked separately in the dotfiles stow packages.
+sidebar process. It is installed by `scripts/setup-treemux.sh` from the tracked
+source file `scripts/treemux_init.lua` on every bootstrap run.
 
 ## Keybindings (default)
 
