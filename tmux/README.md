@@ -34,12 +34,12 @@
 - Window and pane numbering both start at `1`.
 - Windows are renumbered automatically.
 - The status bar is positioned at the top.
-- The right side of the status line keeps Nord separators/colors and shows prefix state plus CPU and memory usage with plugin icons (`` CPU, `` MEM), with date/time/host removed.
+- The right side of the status line uses `#{prefix_highlight}` for prefix state (`^A`) and shows CPU and memory usage with plugin icons (`` CPU, `` MEM), with date/time/host removed.
 - `tmux-menus` is installed through TPM and opens popup menus with `<prefix> \` by default.
 - Treemux is the tmux-side plugin layer that connects tmux with a Neovim tree client; in this setup it is configured to use `nvim-tree` and a Python interpreter at `/home/nmuoh/.local/share/treemux-venv/bin/python` created by `uv`.
 - `tmux-cpu-mem-monitor` is vendored in `tmux-cpu-mem-monitor/` and stowed to `~/.tmux/plugins/tmux-cpu-mem-monitor`.
 - Its `tmux_cpu_mem_monitor.tmux` wrapper runs `uv sync` and rewrites placeholders for `cpu`, `mem`, `disk`, and `battery` with `uv run --project ... src/*.py`.
-- The tmux config keeps the CPU/MEM commands in user options (`@cpu_mem_plugin_dir`, `@cpu_cmd`, `@mem_cmd`, style fragments) and expands them with `#{E:@name}` so `status-right` stays readable.
+- The tmux config keeps the CPU/MEM commands in user options (`@cpu_mem_plugin_dir`, `@cpu_cmd`, `@mem_cmd`, style fragments) and uses `#{prefix_highlight}` plus `#{E:@name}` expansions so `status-right` stays readable.
 - TPM is initialized at the end of the file, which is the correct tmux plugin pattern.
 
 ## Treemux shortcuts
