@@ -1,0 +1,617 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DRY_RUN=0
+MWT_REPO_OVERRIDE=""
+__MWT_TRAPS_ENABLED=0
+
+is_dry_run() {
+  [[ "${DRY_RUN:-0}" == "1" ]]
+}
+
+use_color() {
+  [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != "dumb" ]]
+}
+
+color() {
+  local code=$1
+  shift
+  if use_color; then
+    printf '\033[%sm%s\033[0m' "$code" "$*"
+  else
+    printf '%s' "$*"
+  fi
+}
+
+log() {
+  color '1;34' '==>'
+  printf ' '
+  color '1' "$*"
+  printf '\n'
+}
+
+sublog() {
+  printf '\n  '
+  color '1' "$*"
+  printf '\n'
+}
+
+status() {
+  local label=$1
+  shift
+  local label_color=36
+  case "$label" in
+    done) label_color=32 ;;
+    skip) label_color=33 ;;
+    todo) label_color=35 ;;
+    error) label_color=31 ;;
+    plan) label_color=36 ;;
+    run) label_color=36 ;;
+  esac
+  printf '    '
+  color "$label_color" "$(printf '%-7s' "$label")"
+  printf '  %s\n' "$*"
+}
+
+command_string() {
+  local arg
+  local quoted=()
+  for arg in "$@"; do
+    printf -v arg '%q' "$arg"
+    quoted+=("$arg")
+  done
+  local IFS=' '
+  printf '%s' "${quoted[*]}"
+}
+
+die() {
+  printf 'mwt: %s\n' "$*" >&2
+  exit 1
+}
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
+}
+
+report_error() {
+  local exit_code=$1
+  local source=$2
+  local line=$3
+  local command=$4
+  status error "failed at ${source}:${line}: ${command} (exit ${exit_code})" >&2
+}
+
+on_error() {
+  local exit_code=$1
+  local line=$2
+  local command=$3
+  local source=${BASH_SOURCE[1]:-$0}
+  trap - ERR
+  report_error "$exit_code" "$source" "$line" "$command"
+  exit "$exit_code"
+}
+
+enable_error_trap() {
+  if [[ "$__MWT_TRAPS_ENABLED" == "1" ]]; then
+    return
+  fi
+  trap 'on_error "$?" "$LINENO" "$BASH_COMMAND"' ERR
+  set -E
+  __MWT_TRAPS_ENABLED=1
+}
+
+run() {
+  if is_dry_run; then
+    status plan "$(command_string "$@")"
+  else
+    local caller_info
+    local caller_line
+    local caller_source
+    local exit_code
+
+    status run "$(command_string "$@")"
+    if "$@"; then
+      return 0
+    fi
+    exit_code=$?
+    caller_info="$(caller 0)"
+    caller_line=${caller_info%% *}
+    caller_source=${caller_info##* }
+    report_error "$exit_code" "$caller_source" "$caller_line" "$(command_string "$@")"
+    exit "$exit_code"
+  fi
+}
+
+expand_path() {
+  local path=$1
+  if [[ "$path" == ~* ]]; then
+    printf '%s\n' "${path/#\~/$HOME}"
+  else
+    printf '%s\n' "$path"
+  fi
+}
+
+abspath() {
+  local path=$1
+  if [[ "$path" = /* ]]; then
+    printf '%s\n' "$path"
+  else
+    printf '%s\n' "$(cd "$path" 2>/dev/null && pwd)"
+  fi
+}
+
+find_backend_repo() {
+  local candidate
+  local current
+
+  if [[ -n "$MWT_REPO_OVERRIDE" ]]; then
+    candidate="$(expand_path "$MWT_REPO_OVERRIDE")"
+    [[ -d "$candidate/.git" ]] || die "backend repo not found: $candidate"
+    [[ -f "$candidate/wt.yaml" ]] || die "missing wt.yaml in backend repo: $candidate"
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+
+  if [[ -n "${MWT_REPO:-}" ]]; then
+    candidate="$(expand_path "$MWT_REPO")"
+    [[ -d "$candidate/.git" ]] || die "backend repo not found: $candidate"
+    [[ -f "$candidate/wt.yaml" ]] || die "missing wt.yaml in backend repo: $candidate"
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+
+  current=$PWD
+  while [[ "$current" != "/" ]]; do
+    if [[ -d "$current/.git" && -f "$current/wt.yaml" ]]; then
+      printf '%s\n' "$current"
+      return 0
+    fi
+    current=$(dirname "$current")
+  done
+
+  die "could not resolve backend repo; use --repo <path> or run from inside a backend repo with wt.yaml"
+}
+
+wt_yaml() {
+  local repo_root=$1
+  printf '%s/wt.yaml\n' "$repo_root"
+}
+
+yq_get() {
+  local file=$1
+  local query=$2
+  yq -r "$query // empty" "$file"
+}
+
+yq_array() {
+  local file=$1
+  local query=$2
+  yq -r "$query // [] | .[]" "$file"
+}
+
+project_exists() {
+  local file=$1
+  local project=$2
+  yq -e '.projects | has($name)' --arg name "$project" "$file" >/dev/null 2>&1
+}
+
+sanitize_branch_dir() {
+  local branch=$1
+  printf '%s\n' "${branch//\//_}"
+}
+
+project_value() {
+  local file=$1
+  local project=$2
+  local field=$3
+  yq_get "$file" ".projects[\"${project}\"].${field}"
+}
+
+project_sparse_paths() {
+  local file=$1
+  local project=$2
+  yq_array "$file" ".projects[\"${project}\"].sparse"
+}
+
+project_names() {
+  local file=$1
+  yq_array "$file" '.projects | keys'
+}
+
+worktrees_dir() {
+  local file=$1
+  local configured
+  configured=$(yq_get "$file" '.worktrees_dir')
+  [[ -n "$configured" ]] || die "missing worktrees_dir in $file"
+  expand_path "$configured"
+}
+
+require_clean_yaml_project() {
+  local file=$1
+  local project=$2
+  project_exists "$file" "$project" || die "project not found in wt.yaml: $project"
+  [[ -n "$(project_value "$file" "$project" 'branch')" ]] || die "project '$project' is missing branch"
+  [[ -n "$(project_value "$file" "$project" 'base')" ]] || die "project '$project' is missing base"
+}
+
+branch_in_use() {
+  local repo_root=$1
+  local branch=$2
+  git -C "$repo_root" worktree list --porcelain | awk -v target="refs/heads/$branch" '
+    $1 == "branch" && $2 == target { found = 1 }
+    END { exit(found ? 0 : 1) }
+  '
+}
+
+init_template() {
+  local repo_root=$1
+  local yaml_file=$2
+  local backend_name
+  local default_worktrees
+
+  backend_name=$(basename "$repo_root")
+  if [[ "$backend_name" == *-git ]]; then
+    default_worktrees="${repo_root%-git}-wt"
+  else
+    default_worktrees="${repo_root}-wt"
+  fi
+
+  cat > "$yaml_file" <<EOF
+worktrees_dir: $default_worktrees
+
+projects:
+  example:
+    branch: feature/example
+    base: origin/main
+    dir: feature_example
+    sparse:
+      - .agents
+      - .github
+      - .vscode
+      - common/shared_tasks
+      - projects/example
+EOF
+}
+
+cmd_init() {
+  local repo_url=${1:-}
+  local backend_dir=${2:-}
+  local repo_root
+  local yaml_file
+
+  [[ -n "$repo_url" ]] || die "usage: mwt init <repo-url> <backend-dir>"
+  [[ -n "$backend_dir" ]] || die "usage: mwt init <repo-url> <backend-dir>"
+
+  need_cmd git
+  need_cmd yq
+
+  backend_dir=$(expand_path "$backend_dir")
+  if [[ -e "$backend_dir" && ! -d "$backend_dir/.git" ]]; then
+    die "path exists but is not a git repository: $backend_dir"
+  fi
+
+  if [[ ! -d "$backend_dir/.git" ]]; then
+    run git clone --filter=blob:none --no-checkout "$repo_url" "$backend_dir"
+  else
+    status skip "$backend_dir already exists"
+  fi
+
+  repo_root=$backend_dir
+  run git -C "$repo_root" sparse-checkout init --cone
+  run git -C "$repo_root" sparse-checkout set
+  run git -C "$repo_root" checkout --detach
+  run git -C "$repo_root" config core.sparseCheckoutCone true
+  run git -C "$repo_root" config fetch.prune true
+  run git -C "$repo_root" config maintenance.auto true
+  run git -C "$repo_root" config extensions.worktreeConfig true
+
+  yaml_file=$(wt_yaml "$repo_root")
+  if [[ -f "$yaml_file" ]]; then
+    status skip "$yaml_file already exists"
+  elif is_dry_run; then
+    status plan "write $yaml_file"
+  else
+    init_template "$repo_root" "$yaml_file"
+    status done "wrote $yaml_file"
+  fi
+}
+
+create_project_worktree() {
+  local repo_root=$1
+  local yaml_file=$2
+  local project=$3
+  local root_dir
+  local branch
+  local base
+  local dir_name
+  local worktree_path
+  local sparse_paths=()
+  local sparse_path
+
+  require_clean_yaml_project "$yaml_file" "$project"
+  root_dir=$(worktrees_dir "$yaml_file")
+  branch=$(project_value "$yaml_file" "$project" 'branch')
+  base=$(project_value "$yaml_file" "$project" 'base')
+  dir_name=$(project_value "$yaml_file" "$project" 'dir')
+  if [[ -z "$dir_name" ]]; then
+    dir_name=$(sanitize_branch_dir "$branch")
+  fi
+  worktree_path="$root_dir/$dir_name"
+
+  if [[ -e "$worktree_path" ]]; then
+    die "worktree path already exists: $worktree_path"
+  fi
+
+  mapfile -t sparse_paths < <(project_sparse_paths "$yaml_file" "$project")
+  [[ ${#sparse_paths[@]} -gt 0 ]] || die "project '$project' is missing sparse paths"
+
+  run mkdir -p "$root_dir"
+  run git -C "$repo_root" fetch --all --prune
+
+  if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch"; then
+    if branch_in_use "$repo_root" "$branch"; then
+      die "branch is already checked out in another worktree: $branch"
+    fi
+    run git -C "$repo_root" worktree add "$worktree_path" "$branch"
+  else
+    git -C "$repo_root" rev-parse --verify "$base" >/dev/null 2>&1 || die "base ref does not exist: $base"
+    run git -C "$repo_root" worktree add -b "$branch" "$worktree_path" "$base"
+  fi
+
+  run git -C "$worktree_path" sparse-checkout init --cone
+  run git -C "$worktree_path" sparse-checkout set "${sparse_paths[@]}"
+  status done "$project -> $worktree_path"
+}
+
+cmd_add() {
+  local repo_root
+  local yaml_file
+  local project=${1:-}
+
+  need_cmd git
+  need_cmd yq
+  repo_root=$(find_backend_repo)
+  yaml_file=$(wt_yaml "$repo_root")
+
+  if [[ "$project" == "--all" ]]; then
+    local any=0
+    local name
+    while IFS= read -r name; do
+      [[ -n "$name" ]] || continue
+      any=1
+      sublog "$name"
+      create_project_worktree "$repo_root" "$yaml_file" "$name"
+    done < <(project_names "$yaml_file")
+    [[ "$any" == "1" ]] || die "no projects found in $yaml_file"
+    return 0
+  fi
+
+  [[ -n "$project" ]] || die "usage: mwt add <project>|--all"
+  create_project_worktree "$repo_root" "$yaml_file" "$project"
+}
+
+cmd_list() {
+  local repo_root
+  local yaml_file
+  local root_dir
+  local project
+  local branch
+  local dir_name
+  local worktree_path
+
+  need_cmd git
+  need_cmd yq
+  repo_root=$(find_backend_repo)
+  yaml_file=$(wt_yaml "$repo_root")
+  root_dir=$(worktrees_dir "$yaml_file")
+
+  while IFS= read -r project; do
+    [[ -n "$project" ]] || continue
+    branch=$(project_value "$yaml_file" "$project" 'branch')
+    dir_name=$(project_value "$yaml_file" "$project" 'dir')
+    if [[ -z "$dir_name" ]]; then
+      dir_name=$(sanitize_branch_dir "$branch")
+    fi
+    worktree_path="$root_dir/$dir_name"
+    if [[ -d "$worktree_path" ]]; then
+      status done "$project  $branch  $worktree_path"
+    else
+      status skip "$project  $branch  $worktree_path"
+    fi
+  done < <(project_names "$yaml_file")
+}
+
+cmd_rm() {
+  local repo_root
+  local yaml_file
+  local project=${1:-}
+  local root_dir
+  local branch
+  local dir_name
+  local worktree_path
+  local confirm
+
+  [[ -n "$project" ]] || die "usage: mwt rm <project>"
+  need_cmd git
+  need_cmd yq
+  repo_root=$(find_backend_repo)
+  yaml_file=$(wt_yaml "$repo_root")
+  require_clean_yaml_project "$yaml_file" "$project"
+  root_dir=$(worktrees_dir "$yaml_file")
+  branch=$(project_value "$yaml_file" "$project" 'branch')
+  dir_name=$(project_value "$yaml_file" "$project" 'dir')
+  if [[ -z "$dir_name" ]]; then
+    dir_name=$(sanitize_branch_dir "$branch")
+  fi
+  worktree_path="$root_dir/$dir_name"
+  [[ -d "$worktree_path" ]] || die "worktree does not exist: $worktree_path"
+
+  if ! is_dry_run; then
+    printf 'Remove worktree %s (%s)? [y/N] ' "$project" "$worktree_path" >&2
+    read -r confirm
+    [[ "$confirm" =~ ^[Yy]$ ]] || die "aborted"
+  fi
+
+  run git -C "$repo_root" worktree remove "$worktree_path"
+  run git -C "$repo_root" worktree prune
+  status done "removed $worktree_path"
+  status todo "branch retained: $branch"
+}
+
+cmd_status() {
+  local repo_root
+  local yaml_file
+  local root_dir
+  local project
+  local branch
+  local dir_name
+  local worktree_path
+
+  need_cmd git
+  need_cmd yq
+  repo_root=$(find_backend_repo)
+  yaml_file=$(wt_yaml "$repo_root")
+  root_dir=$(worktrees_dir "$yaml_file")
+
+  while IFS= read -r project; do
+    [[ -n "$project" ]] || continue
+    branch=$(project_value "$yaml_file" "$project" 'branch')
+    dir_name=$(project_value "$yaml_file" "$project" 'dir')
+    if [[ -z "$dir_name" ]]; then
+      dir_name=$(sanitize_branch_dir "$branch")
+    fi
+    worktree_path="$root_dir/$dir_name"
+    if [[ -d "$worktree_path" ]]; then
+      sublog "$project"
+      git -C "$worktree_path" status --short
+    else
+      status skip "$project not created: $worktree_path"
+    fi
+  done < <(project_names "$yaml_file")
+}
+
+cmd_sync() {
+  local repo_root
+  local yaml_file
+  local do_pull=0
+  local root_dir
+  local project
+  local branch
+  local dir_name
+  local worktree_path
+
+  if [[ "${1:-}" == "--pull" ]]; then
+    do_pull=1
+  elif [[ $# -gt 0 ]]; then
+    die "usage: mwt sync [--pull]"
+  fi
+
+  need_cmd git
+  need_cmd yq
+  repo_root=$(find_backend_repo)
+  yaml_file=$(wt_yaml "$repo_root")
+  root_dir=$(worktrees_dir "$yaml_file")
+
+  run git -C "$repo_root" fetch --all --prune
+  if [[ "$do_pull" != "1" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r project; do
+    [[ -n "$project" ]] || continue
+    branch=$(project_value "$yaml_file" "$project" 'branch')
+    dir_name=$(project_value "$yaml_file" "$project" 'dir')
+    if [[ -z "$dir_name" ]]; then
+      dir_name=$(sanitize_branch_dir "$branch")
+    fi
+    worktree_path="$root_dir/$dir_name"
+    if [[ -d "$worktree_path" ]]; then
+      run git -C "$worktree_path" pull --rebase
+    else
+      status skip "$project not created: $worktree_path"
+    fi
+  done < <(project_names "$yaml_file")
+}
+
+usage() {
+  cat <<'EOF'
+Monorepo WorkTree manager
+
+Usage:
+  mwt [--repo <path>] [--dry-run|-n] <command> [args]
+
+Commands:
+  init <repo-url> <backend-dir>  Initialize a detached-HEAD backend repo and write wt.yaml
+  add <project>                  Create one worktree from wt.yaml
+  add --all                      Create all worktrees from wt.yaml
+  list                           List configured worktrees and whether they exist
+  rm <project>                   Remove a configured worktree and prune metadata
+  status                         Show git status across configured worktrees
+  sync [--pull]                  Fetch in backend, optionally pull --rebase in worktrees
+  help                           Show this message
+
+Global options:
+  --repo <path>                  Backend repo path; overrides discovery
+  -n, --dry-run                  Print planned commands without executing them
+
+Notes:
+  - mwt reads wt.yaml from the backend repo root.
+  - Root-level files are available by default in the backend sparse checkout.
+  - Existing worktree adoption is not implemented.
+EOF
+}
+
+main() {
+  local args=()
+  local cmd
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --repo)
+        shift
+        [[ $# -gt 0 ]] || die "missing value for --repo"
+        MWT_REPO_OVERRIDE=$1
+        ;;
+      -n|--dry-run)
+        DRY_RUN=1
+        ;;
+      -h|--help|help)
+        usage
+        return 0
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *)
+        args+=("$1")
+        ;;
+    esac
+    shift
+  done
+
+  while [[ $# -gt 0 ]]; do
+    args+=("$1")
+    shift
+  done
+
+  cmd=${args[0]:-help}
+  if [[ ${#args[@]} -gt 0 ]]; then
+    args=("${args[@]:1}")
+  fi
+
+  enable_error_trap
+
+  case "$cmd" in
+    init) cmd_init "${args[@]}" ;;
+    add) cmd_add "${args[@]}" ;;
+    list) cmd_list "${args[@]}" ;;
+    rm) cmd_rm "${args[@]}" ;;
+    status) cmd_status "${args[@]}" ;;
+    sync) cmd_sync "${args[@]}" ;;
+    help) usage ;;
+    *) die "unknown command: $cmd" ;;
+  esac
+}
+
+main "$@"
