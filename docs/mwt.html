@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mwt — Monorepo WorkTree Explorer</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
+  --text: #c9d1d9; --muted: #8b949e;
+  --blue: #58a6ff; --green: #3fb950; --yellow: #d29922;
+  --red: #f85149; --cyan: #39c5cf; --purple: #bc8cff; --orange: #ffa657;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Courier New',monospace;background:var(--bg);color:var(--text);line-height:1.6}
+a{color:var(--blue);text-decoration:none}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 40%,#1a2a3a 0%,var(--bg) 65%);
+  text-align:center;position:relative;overflow:hidden;padding:2rem}
+.hero::before{content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(88,166,255,.04)1px,transparent 1px),
+  linear-gradient(90deg,rgba(88,166,255,.04)1px,transparent 1px);
+  background-size:50px 50px;pointer-events:none}
+.hero-tag{color:var(--cyan);font-size:.78rem;letter-spacing:5px;text-transform:uppercase;margin-bottom:1.5rem;opacity:.8}
+.hero-title{font-size:clamp(2.8rem,8vw,5.5rem);font-weight:700;color:#fff;letter-spacing:-2px;margin-bottom:.75rem;line-height:1}
+.hero-title .accent{color:var(--blue)}
+.hero-sub{font-size:1.05rem;color:var(--muted);max-width:480px;margin-bottom:2.5rem;line-height:1.7}
+.hero-term{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:1.2rem 1.5rem;width:min(90vw,520px);text-align:left;margin-bottom:2.5rem}
+.term-bar{display:flex;gap:6px;margin-bottom:.8rem}
+.term-dot{width:12px;height:12px;border-radius:50%}
+.term-line{font-size:.85rem;margin-bottom:.3rem}
+.term-prompt{color:var(--blue)}
+.term-cmd{color:var(--green)}
+.term-out{color:var(--muted);padding-left:1rem}
+.term-out.green{color:var(--green)}
+.term-out.cyan{color:var(--cyan)}
+.cursor{display:inline-block;width:8px;height:1em;background:var(--green);vertical-align:text-bottom;animation:blink 1s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+.hero-cta{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center}
+.btn{padding:.7rem 1.8rem;border-radius:7px;font-family:inherit;font-size:.875rem;cursor:pointer;
+  border:1px solid;transition:all .2s;text-decoration:none;display:inline-block}
+.btn-primary{background:var(--blue);border-color:var(--blue);color:#0d1117;font-weight:700}
+.btn-primary:hover{background:#79b8ff}
+.btn-ghost{background:transparent;border-color:var(--border);color:var(--muted)}
+.btn-ghost:hover{border-color:var(--muted);color:var(--text)}
+.scroll-hint{position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);
+  color:var(--muted);font-size:.75rem;display:flex;flex-direction:column;align-items:center;gap:.4rem;
+  animation:bob 2.5s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(8px)}}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:100;background:rgba(13,17,23,.95);
+  border-bottom:1px solid var(--border);backdrop-filter:blur(12px)}
+.nav-inner{max-width:1120px;margin:0 auto;display:flex;align-items:center;padding:0 1.5rem;overflow-x:auto}
+.nav-brand{color:var(--blue);font-weight:700;font-size:.95rem;padding:.9rem 1.2rem .9rem 0;
+  border-right:1px solid var(--border);margin-right:.5rem;white-space:nowrap;flex-shrink:0}
+.nav-tab{padding:.9rem .9rem;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;
+  transition:all .2s;font-size:.82rem;white-space:nowrap;user-select:none}
+.nav-tab:hover{color:var(--text)}
+.nav-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* SECTIONS */
+.section{display:none;max-width:1120px;margin:0 auto;padding:3rem 1.5rem}
+.section.active{display:block}
+.sec-title{font-size:1.5rem;color:#fff;margin-bottom:.35rem}
+.sec-sub{color:var(--muted);margin-bottom:2.5rem;font-size:.875rem}
+
+/* OVERVIEW */
+.arch-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:2rem;margin-bottom:2rem;overflow-x:auto;display:flex;justify-content:center}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
+.info-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.25rem}
+.info-icon{font-size:1.5rem;margin-bottom:.5rem}
+.info-title{color:#fff;font-size:.95rem;margin-bottom:.4rem}
+.info-desc{color:var(--muted);font-size:.8rem;line-height:1.6}
+
+/* COMMANDS GRID */
+.cmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1rem;margin-bottom:1.5rem}
+.cmd-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:1.25rem;cursor:pointer;transition:all .2s;user-select:none}
+.cmd-card:hover,.cmd-card.active{border-color:var(--blue);background:var(--surface2)}
+.cmd-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem}
+.cmd-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;font-size:1.15rem;flex-shrink:0}
+.cmd-name{font-weight:700;color:var(--blue);font-size:.95rem}
+.cmd-quest{font-size:.72rem;color:var(--muted);font-style:italic;margin-top:.1rem}
+.cmd-desc{font-size:.82rem;color:var(--muted);margin-bottom:.9rem}
+.cmd-syntax{background:var(--bg);border-radius:6px;padding:.4rem .7rem;font-size:.78rem;color:var(--cyan);word-break:break-all}
+
+/* JOURNEY PANEL */
+.journey-panel{display:none;background:var(--surface);border:2px solid var(--blue);
+  border-radius:12px;padding:2rem;margin-top:1rem;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.journey-panel.open{display:block}
+.journey-header{display:flex;gap:1.25rem;margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.journey-icon-lg{width:64px;height:64px;border-radius:14px;display:flex;align-items:center;
+  justify-content:center;font-size:2rem;flex-shrink:0}
+.journey-title{font-size:1.2rem;color:#fff;margin-bottom:.2rem}
+.journey-quest{font-size:.75rem;color:var(--cyan);letter-spacing:2px;text-transform:uppercase;margin-bottom:.5rem}
+.journey-narrative{color:var(--muted);font-size:.85rem;line-height:1.75;max-width:600px}
+.journey-term{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:.9rem 1rem;margin-bottom:1.5rem;font-size:.82rem;word-break:break-all}
+.j-prompt{color:var(--blue)}
+.j-cmd{color:var(--green)}
+.steps{list-style:none}
+.step{display:flex;gap:1rem;padding:.9rem;border-radius:8px;margin-bottom:.4rem;
+  border:1px solid transparent;opacity:.35;transition:all .35s}
+.step.vis{opacity:1}
+.step.hi{background:rgba(88,166,255,.06);border-color:var(--border)}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--surface2);
+  border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;color:var(--muted);flex-shrink:0;margin-top:.1rem}
+.step.hi .step-num{background:var(--blue);border-color:var(--blue);color:#0d1117}
+.fn-pill{font-size:.68rem;color:var(--cyan);background:rgba(57,197,207,.12);border-radius:4px;
+  padding:1px 6px;display:inline-block;margin:0 3px 3px 0;border:1px solid rgba(57,197,207,.2)}
+.step-title{font-size:.88rem;color:#fff;margin-bottom:.25rem;margin-top:.3rem}
+.step-desc{font-size:.8rem;color:var(--muted);line-height:1.6}
+.step-out{margin-top:.5rem;background:var(--bg);border-radius:5px;padding:.5rem .7rem;
+  font-size:.75rem;color:var(--green);white-space:pre-wrap;word-break:break-all}
+.step-out.mixed{color:var(--muted)}
+.journey-ctrl{display:flex;gap:.75rem;margin-top:1.5rem;align-items:center;flex-wrap:wrap}
+.step-counter{color:var(--muted);font-size:.8rem}
+
+/* FUNCTION MAP */
+#graph-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  height:580px;position:relative;overflow:hidden;margin-bottom:1rem}
+#graph-svg{width:100%;height:100%}
+.graph-filters{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
+.gfbtn{padding:.35rem .85rem;border-radius:20px;border:1px solid var(--border);
+  background:var(--surface);color:var(--muted);cursor:pointer;font-family:inherit;
+  font-size:.75rem;transition:all .2s;user-select:none}
+.gfbtn:hover{border-color:var(--blue);color:var(--text)}
+.gfbtn.on{background:var(--blue);border-color:var(--blue);color:#0d1117;font-weight:700}
+.graph-legend{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;font-size:.75rem;color:var(--muted)}
+.legend-item{display:flex;align-items:center;gap:.4rem}
+.ldot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.g-tooltip{position:absolute;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:.75rem 1rem;font-size:.78rem;pointer-events:none;
+  opacity:0;transition:opacity .15s;max-width:230px;z-index:20}
+.g-tooltip.show{opacity:1}
+.tt-fn{color:var(--blue);font-weight:700;margin-bottom:.25rem}
+.tt-grp{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:.4rem}
+.tt-desc{color:var(--text);line-height:1.5}
+.node circle{stroke-width:2;cursor:pointer;transition:r .15s}
+.node text{font-size:11px;fill:var(--text);pointer-events:none;user-select:none}
+.link{stroke:var(--border);stroke-width:1.5;fill:none;opacity:.5}
+.link.hi{stroke:var(--blue);opacity:.9;stroke-width:2}
+.node.dim circle{opacity:.2}
+.node.dim text{opacity:.2}
+.node.hi circle{stroke-width:3}
+
+/* YAML SCHEMA */
+.yaml-wrap{display:grid;grid-template-columns:1fr 1fr;gap:2rem}
+@media(max-width:680px){.yaml-wrap{grid-template-columns:1fr}}
+.yaml-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem}
+.yaml-box-title{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:2px;margin-bottom:1rem}
+.yl{padding:3px 4px;font-size:.83rem;cursor:pointer;border-radius:4px;transition:background .15s}
+.yl:hover{background:var(--surface2)}
+.yl.sel{background:rgba(88,166,255,.1);border-left:2px solid var(--blue);padding-left:6px}
+.yk{color:var(--blue)}
+.yv{color:var(--green)}
+.yc{color:#484f58;font-style:italic}
+.ya{color:var(--orange)}
+.yi1{padding-left:18px}
+.yi2{padding-left:36px}
+.yi3{padding-left:54px}
+.detail-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem}
+.det-field{color:var(--cyan);font-weight:700;font-size:.95rem;margin-bottom:.2rem}
+.det-type{font-size:.72rem;margin-bottom:.75rem;display:flex;gap:.5rem;flex-wrap:wrap}
+.tag{padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:600}
+.tag-req{background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.3)}
+.tag-opt{background:rgba(210,153,34,.15);color:var(--yellow);border:1px solid rgba(210,153,34,.3)}
+.tag-grp{background:rgba(88,166,255,.1);color:var(--blue);border:1px solid rgba(88,166,255,.3)}
+.det-desc{color:var(--muted);font-size:.83rem;line-height:1.7;margin-bottom:.9rem}
+.det-query{background:var(--bg);border-radius:6px;padding:.5rem .75rem;font-size:.77rem;color:var(--yellow)}
+.det-query-lbl{color:var(--muted);font-size:.68rem;display:block;margin-bottom:2px}
+.det-select-hint{color:var(--muted);font-size:.8rem;font-style:italic}
+
+/* Utility */
+.divider{border:none;border-top:1px solid var(--border);margin:2rem 0}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <div class="hero-tag">Interactive Script Explorer</div>
+  <h1 class="hero-title"><span class="accent">mwt</span><br>Monorepo WorkTree</h1>
+  <p class="hero-sub">A visual guide to how the script works — function call graphs, hero-journey scenarios, and an annotated YAML schema.</p>
+  <div class="hero-term">
+    <div class="term-bar">
+      <div class="term-dot" style="background:#ff5f56"></div>
+      <div class="term-dot" style="background:#ffbd2e"></div>
+      <div class="term-dot" style="background:#27c93f"></div>
+    </div>
+    <div class="term-line"><span class="term-prompt">sbd-legionrepo-git on HEAD (56cb647) ❯ </span><span class="term-cmd">mwt add snowflake-cdp</span></div>
+    <div class="term-line term-out cyan">    run      git fetch --all --prune</div>
+    <div class="term-line term-out cyan">    run      git worktree add -b snowflake_cdp/amp_backfill ...</div>
+    <div class="term-line term-out cyan">    run      git sparse-checkout init --cone</div>
+    <div class="term-line term-out cyan">    run      git sparse-checkout set .agents .github ...</div>
+    <div class="term-line term-out green">    done     snowflake-cdp -&gt; ~/Developer/sbd-legionrepo-wt/snowflake_cdp_amp_backfill<span class="cursor"></span></div>
+  </div>
+  <div class="hero-cta">
+    <a href="#main" class="btn btn-primary" onclick="showTab('overview')">Explore the Architecture</a>
+    <a href="#main" class="btn btn-ghost" onclick="showTab('commands')">See Scenarios</a>
+  </div>
+  <div class="scroll-hint">▼ scroll to explore</div>
+</section>
+
+<!-- NAV -->
+<nav class="nav" id="main">
+  <div class="nav-inner">
+    <div class="nav-brand">mwt</div>
+    <div class="nav-tab active" onclick="showTab('overview')">Overview</div>
+    <div class="nav-tab" onclick="showTab('commands')">Commands</div>
+    <div class="nav-tab" onclick="showTab('funcmap')">Function Map</div>
+    <div class="nav-tab" onclick="showTab('yamlschema')">YAML Schema</div>
+  </div>
+</nav>
+
+<!-- OVERVIEW -->
+<section class="section active" id="overview">
+  <h2 class="sec-title">Architecture Overview</h2>
+  <p class="sec-sub">One Fortress, many Outposts — how the pieces fit together.</p>
+
+  <div class="arch-wrap">
+    <svg viewBox="0 0 820 360" width="820" height="360" style="max-width:100%;font-family:'Courier New',monospace">
+      <!-- Remote -->
+      <rect x="330" y="10" width="160" height="56" rx="8" fill="#1a2332" stroke="#30363d" stroke-width="1.5"/>
+      <text x="410" y="34" text-anchor="middle" fill="#8b949e" font-size="10" letter-spacing="2">REMOTE ORIGIN</text>
+      <text x="410" y="52" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="700">github.com/org/monorepo</text>
+      <!-- arrow down to backend -->
+      <line x1="410" y1="66" x2="410" y2="108" stroke="#30363d" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+
+      <!-- Backend box -->
+      <rect x="255" y="108" width="310" height="120" rx="10" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="275" y="130" fill="#58a6ff" font-size="10" letter-spacing="2">BACKEND REPO  (detached HEAD)</text>
+      <text x="275" y="152" fill="#c9d1d9" font-size="11">📦  .git/  — shared object store</text>
+      <text x="275" y="170" fill="#c9d1d9" font-size="11">🌿  sparse: root files only</text>
+      <text x="275" y="188" fill="#d29922" font-size="11">📜  wt.yaml  — project registry</text>
+      <text x="275" y="206" fill="#8b949e" font-size="10">extensions.worktreeConfig = true</text>
+
+      <!-- arrows to worktrees -->
+      <line x1="320" y1="228" x2="130" y2="272" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arrg)"/>
+      <line x1="410" y1="228" x2="410" y2="272" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arrg)"/>
+      <line x1="500" y1="228" x2="690" y2="272" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arrg)"/>
+
+      <!-- Worktree 1 -->
+      <rect x="30" y="272" width="200" height="76" rx="8" fill="#161b22" stroke="#3fb950" stroke-width="1"/>
+      <text x="40" y="292" fill="#3fb950" font-size="9" letter-spacing="1">WORKTREE  snowflake-cdp</text>
+      <text x="40" y="308" fill="#c9d1d9" font-size="10">branch: snowflake_cdp/amp_backfill</text>
+      <text x="40" y="324" fill="#8b949e" font-size="10">sparse: .agents .github projects/</text>
+      <text x="40" y="340" fill="#8b949e" font-size="10">snowflake_cdp common/shared_tasks</text>
+
+      <!-- Worktree 2 -->
+      <rect x="310" y="272" width="200" height="76" rx="8" fill="#161b22" stroke="#3fb950" stroke-width="1"/>
+      <text x="320" y="292" fill="#3fb950" font-size="9" letter-spacing="1">WORKTREE  analytics</text>
+      <text x="320" y="308" fill="#c9d1d9" font-size="10">branch: feature/analytics</text>
+      <text x="320" y="324" fill="#8b949e" font-size="10">sparse: .agents .github projects/</text>
+      <text x="320" y="340" fill="#8b949e" font-size="10">analytics common/shared_tasks</text>
+
+      <!-- Worktree 3 -->
+      <rect x="590" y="272" width="200" height="76" rx="8" fill="#21262d" stroke="#30363d" stroke-width="1" stroke-dasharray="5,3"/>
+      <text x="600" y="292" fill="#8b949e" font-size="9" letter-spacing="1">WORKTREE  backend-api</text>
+      <text x="600" y="308" fill="#8b949e" font-size="10">branch: fix/api-timeouts</text>
+      <text x="600" y="324" fill="#484f58" font-size="10">not yet created</text>
+      <text x="600" y="340" fill="#484f58" font-size="10">run: mwt add backend-api</text>
+
+      <!-- Defs -->
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#30363d"/>
+        </marker>
+        <marker id="arrg" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#3fb950"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-icon">🏰</div>
+      <div class="info-title">Backend Repo</div>
+      <div class="info-desc">Cloned with <code style="color:var(--cyan)">--filter=blob:none --no-checkout</code>. Holds all Git objects (commits, trees) but materializes no blobs. HEAD is always detached — no branch is owned here, freeing all branches for worktrees.</div>
+    </div>
+    <div class="info-card">
+      <div class="info-icon">📜</div>
+      <div class="info-title">wt.yaml</div>
+      <div class="info-desc">Lives at the backend root. Defines <code style="color:var(--cyan)">worktrees_dir</code> and a <code style="color:var(--cyan)">projects:</code> map. Each project entry specifies branch, base, optional dir name, and sparse paths. This is the single source of truth for <code style="color:var(--cyan)">mwt add</code>.</div>
+    </div>
+    <div class="info-card">
+      <div class="info-icon">⛺</div>
+      <div class="info-title">Worktrees</div>
+      <div class="info-desc">Each worktree is an isolated checkout: its own branch, its own files, its own terminal/editor state. Sparse checkout means only the declared paths materialize — everything else exists in the shared object store.</div>
+    </div>
+    <div class="info-card">
+      <div class="info-icon">🔧</div>
+      <div class="info-title">extensions.worktreeConfig</div>
+      <div class="info-desc">Set to <code style="color:var(--green)">true</code> by <code style="color:var(--cyan)">mwt init</code>. This Git config flag allows each worktree to have its own <code style="color:var(--cyan)">config.worktree</code> file with independent sparse-checkout state, rather than sharing the backend's config.</div>
+    </div>
+  </div>
+</section>
+
+<!-- COMMANDS -->
+<section class="section" id="commands">
+  <h2 class="sec-title">Commands — The Hero Journeys</h2>
+  <p class="sec-sub">Click a command to walk through its execution step by step.</p>
+  <div class="cmd-grid" id="cmdGrid"></div>
+  <div class="journey-panel" id="journeyPanel"></div>
+</section>
+
+<!-- FUNCTION MAP -->
+<section class="section" id="funcmap">
+  <h2 class="sec-title">Function Call Graph</h2>
+  <p class="sec-sub">Every function in mwt and who calls whom. Filter by command to highlight a call chain.</p>
+  <div class="graph-filters" id="graphFilters"></div>
+  <div class="graph-legend" id="graphLegend"></div>
+  <div id="graph-wrap">
+    <svg id="graph-svg"></svg>
+    <div class="g-tooltip" id="gTooltip"></div>
+  </div>
+  <p style="font-size:.78rem;color:var(--muted)">Drag nodes to rearrange · Hover for details · Click a filter to highlight a call chain</p>
+</section>
+
+<!-- YAML SCHEMA -->
+<section class="section" id="yamlschema">
+  <h2 class="sec-title">YAML Schema</h2>
+  <p class="sec-sub">Click any line to see how mwt reads it and what it means.</p>
+  <div class="yaml-wrap">
+    <div class="yaml-box">
+      <div class="yaml-box-title">wt.yaml — annotated</div>
+      <div id="yamlLines"></div>
+    </div>
+    <div class="detail-box" id="yamlDetail">
+      <div class="det-select-hint">← Click a line to inspect that field</div>
+    </div>
+  </div>
+</section>
+
+<script>
+// ─── NAV ────────────────────────────────────────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const tabs = document.querySelectorAll('.nav-tab');
+  const map = {overview:0,commands:1,funcmap:2,yamlschema:3};
+  tabs[map[id]].classList.add('active');
+  document.getElementById('main').scrollIntoView({behavior:'smooth'});
+  if (id === 'funcmap' && !graphInitialized) initGraph();
+}
+
+// ─── COMMAND SCENARIOS ───────────────────────────────────────────────────────
+const scenarios = [
+  {
+    id:'init', icon:'🏰', color:'#58a6ff', bg:'rgba(88,166,255,.12)',
+    name:'mwt init', quest:'Founding the Fortress',
+    desc:'Bootstrap a new backend repository — the shared Git object store for all future worktrees.',
+    syntax:'mwt init git@github.com:org/monorepo.git ~/Developer/monorepo-git',
+    narrative:'You stand before an uncharted codebase. The first act is to establish the Fortress — a lean Git backend that will act as the shared object store for all future outposts. Unlike a full checkout, this fortress holds everything but materializes almost nothing, keeping disk usage minimal.',
+    steps:[
+      {fns:['main'],title:'Gates open',desc:'main() parses global flags (--repo, --dry-run) then dispatches to cmd_init. enable_error_trap() installs the ERR handler so any unexpected failure reports its source location.',out:''},
+      {fns:['need_cmd'],title:'Checking the armory',desc:'Verifies git and yq are on PATH. If either is missing, die() prints "mwt: missing required command: X" and exits 1 immediately.',out:''},
+      {fns:['expand_path'],title:'Charting the land',desc:'expand_path() replaces a leading ~ with $HOME so downstream git -C calls receive a full absolute path.',out:''},
+      {fns:['run'],title:'The blobless clone',desc:'git clone --filter=blob:none --no-checkout fetches all commits and tree objects but defers blob download until files are actually needed. No working tree is created yet.',out:'    run      git clone --filter=blob:none --no-checkout git@github.com:... ~/Developer/monorepo-git'},
+      {fns:['run'],title:'Sealing the cone',desc:'git sparse-checkout init --cone enables cone-mode sparse checkout, then git sparse-checkout set with no paths produces the root-only pattern /* !/*/  — only root-level files are visible.',out:'    run      git -C ~/Developer/monorepo-git sparse-checkout init --cone\n    run      git -C ~/Developer/monorepo-git sparse-checkout set'},
+      {fns:['run'],title:'Detaching the crown',desc:'git checkout --detach moves HEAD away from any branch. This frees ALL branches for use in worktrees — a branch can only live in one place at a time.',out:'    run      git -C ~/Developer/monorepo-git checkout --detach\nHEAD is now at 56cb647 init commit'},
+      {fns:['run'],title:'Inscribing the laws',desc:'Four git config calls harden the backend: extensions.worktreeConfig=true (per-worktree sparse configs), fetch.prune=true (clean stale refs), maintenance.auto=true (background GC), core.sparseCheckoutCone=true.',out:'    run      git -C ~/Developer/monorepo-git config extensions.worktreeConfig true\n    run      git -C ~/Developer/monorepo-git config fetch.prune true'},
+      {fns:['init_template','wt_yaml'],title:'Writing the Sacred Scroll',desc:'init_template() derives the sibling worktrees directory name (replacing -git suffix with -wt), then writes a wt.yaml template with one example project profile.',out:'    done     wrote ~/Developer/monorepo-git/wt.yaml'},
+    ]
+  },
+  {
+    id:'add', icon:'⚔️', color:'#3fb950', bg:'rgba(63,185,80,.12)',
+    name:'mwt add', quest:'Dispatching the Expedition',
+    desc:'Create a new isolated worktree from a project profile in wt.yaml, with sparse checkout configured automatically.',
+    syntax:'mwt add snowflake-cdp',
+    narrative:'The sacred scroll has been written. Now you dispatch an expedition — a new outpost in the realm, carrying only the paths it needs, on its own dedicated branch. The Fortress lends its Git objects but remains untouched. Every decision (branch name, base, sparse paths) comes from wt.yaml, not from you at the prompt.',
+    steps:[
+      {fns:['main','cmd_add'],title:'Rallying the troops',desc:'main() dispatches to cmd_add. need_cmd checks both git and yq. find_backend_repo() resolves the backend: checks --repo override, then MWT_REPO env var, then walks up from CWD looking for a directory with both .git and wt.yaml.',out:''},
+      {fns:['wt_yaml','require_clean_yaml_project'],title:'Reading the Scroll',desc:'wt_yaml() returns <backend>/wt.yaml. require_clean_yaml_project() calls project_exists (yq -e has()), then checks branch and base fields exist. Any missing field aborts with die().',out:''},
+      {fns:['worktrees_dir','project_value','sanitize_branch_dir'],title:'Planning the outpost',desc:'worktrees_dir() reads and expands worktrees_dir from yaml. project_value() fetches branch, base, and optionally dir. If dir is absent, sanitize_branch_dir() derives it: snowflake_cdp/amp_backfill → snowflake_cdp_amp_backfill.',out:''},
+      {fns:['project_sparse_paths'],title:'Packing the supplies',desc:'project_sparse_paths() calls yq_array() which runs yq -r ".projects[\"X\"].sparse // [] | .[]" to stream each sparse path as a line. mapfile -t reads them into an array.',out:''},
+      {fns:['run'],title:'Claiming the land',desc:'run mkdir -p <worktrees_dir> creates the parent directory if it does not exist. Idempotent — safe to run even if the directory already exists.',out:'    run      mkdir -p ~/Developer/sbd-legionrepo-wt'},
+      {fns:['run'],title:'Fetching intelligence',desc:'git fetch --all --prune in the backend updates its knowledge of all remote branches and prunes stale tracking refs.',out:'    run      git -C backend fetch --all --prune'},
+      {fns:['branch_in_use','run'],title:'Raising the flag',desc:'If the branch already exists locally AND is not checked out elsewhere, git worktree add <path> <branch>. If branch is new: git worktree add -b <branch> <path> <base>. If already in another worktree: die().',out:'    run      git -C backend worktree add -b snowflake_cdp/amp_backfill ~/Developer/.../snowflake_cdp_amp_backfill origin/main'},
+      {fns:['run','status'],title:'Laying out the camp',desc:'In the new worktree: git sparse-checkout init --cone, then git sparse-checkout set with all the paths from the sparse array. Only those directories materialize on disk.',out:'    run      git -C worktree sparse-checkout init --cone\n    run      git -C worktree sparse-checkout set .agents .github common/shared_tasks projects/snowflake_cdp\n    done     snowflake-cdp -> ~/Developer/.../snowflake_cdp_amp_backfill'},
+    ]
+  },
+  {
+    id:'list', icon:'🗺️', color:'#d29922', bg:'rgba(210,153,34,.12)',
+    name:'mwt list', quest:'Surveying the Realm',
+    desc:'Show all configured projects, their branches, and whether each worktree directory currently exists.',
+    syntax:'mwt list',
+    narrative:'The realm grows. You need a quick survey: which outposts are active, which remain in the scroll but not yet established. Each project in wt.yaml is shown with its branch, derived directory name, and an at-a-glance status.',
+    steps:[
+      {fns:['find_backend_repo','wt_yaml'],title:'Locating the Scroll',desc:'Resolves the backend repo via the same --repo / MWT_REPO / directory-walk chain as all other commands. Derives the wt.yaml path.',out:''},
+      {fns:['worktrees_dir','project_names'],title:'Reading all missions',desc:'worktrees_dir() returns the expanded outposts root. project_names() calls yq_array to stream all keys from the .projects map.',out:''},
+      {fns:['project_value','sanitize_branch_dir'],title:'For each project',desc:'Reads branch and dir (or derives dir from branch). Constructs the full expected path: worktrees_dir/dir_name.',out:''},
+      {fns:['status'],title:'Marking the map',desc:'If the directory exists → status done (green). If not yet created → status skip (yellow). No git operations are performed — this is purely a yaml + filesystem check.',out:'    done     snowflake-cdp  snowflake_cdp/amp_backfill  ~/Developer/.../snowflake_cdp_amp_backfill\n    skip     analytics       feature/analytics            ~/Developer/.../feature_analytics'},
+    ]
+  },
+  {
+    id:'rm', icon:'🔥', color:'#f85149', bg:'rgba(248,81,73,.12)',
+    name:'mwt rm', quest:'Retiring an Outpost',
+    desc:'Remove a worktree directory and clean up Git metadata. The branch is always preserved.',
+    syntax:'mwt rm snowflake-cdp',
+    narrative:'The mission is complete. The outpost must be withdrawn. This is a deliberate act — a confirmation prompt guards against accidents. Critically, the branch is preserved in the Fortress; you can restore the outpost at any time by running mwt add again.',
+    steps:[
+      {fns:['find_backend_repo','require_clean_yaml_project'],title:'Verifying the order',desc:'Resolves backend, reads wt.yaml, validates the project exists and has branch + base. Fails early rather than running git commands against a malformed config.',out:''},
+      {fns:['project_value','sanitize_branch_dir'],title:'Locating the outpost',desc:'Derives the worktree path. Checks -d "$worktree_path" — if the directory does not exist, die() is called. Nothing to remove.',out:''},
+      {fns:['is_dry_run'],title:'Sending the messenger',desc:'In normal mode: prompts "Remove worktree X (path)? [y/N]" and reads from stdin. Any answer other than y/Y calls die("aborted"). In --dry-run mode the prompt is skipped entirely.',out:'Remove worktree snowflake-cdp (~/Developer/.../snowflake_cdp_amp_backfill)? [y/N] y'},
+      {fns:['run'],title:'Withdrawing forces',desc:'git worktree remove <path> removes the worktree directory and deletes its .git file pointer. The worktree metadata in .git/worktrees/ is not yet cleaned up by this command alone.',out:'    run      git -C backend worktree remove ~/Developer/.../snowflake_cdp_amp_backfill'},
+      {fns:['run','status'],title:'Closing the books',desc:'git worktree prune removes the stale .git/worktrees/<name>/ metadata left behind. status todo reminds you the branch still exists — it is intentionally not deleted.',out:'    run      git -C backend worktree prune\n    done     removed ~/Developer/.../snowflake_cdp_amp_backfill\n    todo     branch retained: snowflake_cdp/amp_backfill'},
+    ]
+  },
+  {
+    id:'status', icon:'📡', color:'#bc8cff', bg:'rgba(188,140,255,.12)',
+    name:'mwt status', quest:'The Field Report',
+    desc:'Run git status --short across all existing worktrees.',
+    syntax:'mwt status',
+    narrative:'A quick field report. For each project in wt.yaml whose directory exists, you see its uncommitted changes at a glance. Projects not yet created are noted as skipped. This gives you a full picture of pending work across all active outposts without switching context.',
+    steps:[
+      {fns:['find_backend_repo','wt_yaml','worktrees_dir'],title:'Opening communications',desc:'Resolves backend, yaml path, and worktrees_dir. No git network operations are performed here — this is read-only against local state.',out:''},
+      {fns:['project_names'],title:'Enumerating outposts',desc:'project_names() streams all project keys from wt.yaml. The while loop processes each name one by one.',out:''},
+      {fns:['project_value','sanitize_branch_dir'],title:'Locating each outpost',desc:'For each project: reads branch, derives dir name, constructs the worktree path. Checks whether the directory exists.',out:''},
+      {fns:['sublog'],title:'Field heading',desc:'sublog() prints a blank line + indented bold heading for each existing worktree, matching the lib.sh sublog() style.',out:'\n  snowflake-cdp'},
+      {fns:['status'],title:'Reporting from the field',desc:'git -C <worktree> status --short runs directly (not via run()) since it is a read-only query, not a mutation. For missing worktrees, status skip is printed instead.',out:'M  projects/snowflake_cdp/models/activation.sql\n?? projects/snowflake_cdp/.env\n\n    skip     analytics not created: ~/Developer/.../feature_analytics'},
+    ]
+  },
+  {
+    id:'sync', icon:'🌐', color:'#39c5cf', bg:'rgba(57,197,207,.12)',
+    name:'mwt sync', quest:'The Resupply Mission',
+    desc:'Fetch from origin in the backend. With --pull, also rebase each existing worktree.',
+    syntax:'mwt sync --pull',
+    narrative:'The remote repository has new commits. First, the Fortress fetches all updates into its shared object store — all worktrees benefit simultaneously. Then, with --pull, each active outpost gets its branch rebased onto the latest upstream, without you having to cd into each one manually.',
+    steps:[
+      {fns:['find_backend_repo','wt_yaml'],title:'Mobilizing',desc:'Resolves backend and reads wt.yaml. Checks whether the --pull flag was passed. Any unexpected argument causes die() to print the usage hint.',out:''},
+      {fns:['run'],title:'Central resupply',desc:'git fetch --all --prune in the backend downloads all new commits and objects into the shared .git/ store. Every worktree now has access to the new content.',out:'    run      git -C backend fetch --all --prune'},
+      {fns:['project_names','project_value'],title:'Identifying outposts (--pull)',desc:'If --pull was requested: iterates all projects, derives each worktree path, checks if the directory exists.',out:''},
+      {fns:['run','status'],title:'Resupplying each outpost',desc:'For existing worktrees: git -C <path> pull --rebase rebases the local branch on top of the updated upstream. For non-existent worktrees: status skip is printed and that project is skipped.',out:'    run      git -C ~/Developer/.../snowflake_cdp_amp_backfill pull --rebase\n    skip     analytics not created: ~/Developer/.../feature_analytics'},
+    ]
+  },
+];
+
+let activeScenario = null;
+let currentStep = -1;
+
+function buildCommands() {
+  const grid = document.getElementById('cmdGrid');
+  scenarios.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'cmd-card';
+    card.id = 'card-' + s.id;
+    card.innerHTML = `
+      <div class="cmd-header">
+        <div class="cmd-icon" style="background:${s.bg}">${s.icon}</div>
+        <div>
+          <div class="cmd-name">${s.name}</div>
+          <div class="cmd-quest">${s.quest}</div>
+        </div>
+      </div>
+      <div class="cmd-desc">${s.desc}</div>
+      <div class="cmd-syntax">${s.syntax}</div>`;
+    card.onclick = () => openJourney(s.id);
+    grid.appendChild(card);
+  });
+}
+
+function openJourney(id) {
+  const s = scenarios.find(x => x.id === id);
+  if (!s) return;
+  document.querySelectorAll('.cmd-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('card-' + id).classList.add('active');
+
+  if (activeScenario === id) {
+    document.getElementById('journeyPanel').classList.remove('open');
+    activeScenario = null;
+    return;
+  }
+  activeScenario = id;
+  currentStep = 0;
+
+  const panel = document.getElementById('journeyPanel');
+  panel.classList.add('open');
+  panel.innerHTML = `
+    <div class="journey-header">
+      <div class="journey-icon-lg" style="background:${s.bg}">${s.icon}</div>
+      <div>
+        <div class="journey-quest">${s.quest}</div>
+        <div class="journey-title">${s.name}</div>
+        <div class="journey-narrative">${s.narrative}</div>
+      </div>
+    </div>
+    <div class="journey-term">
+      <span class="j-prompt">sbd-legionrepo-git on HEAD ❯ </span><span class="j-cmd">${s.syntax}</span>
+    </div>
+    <ul class="steps" id="stepList">
+      ${s.steps.map((st,i) => `
+        <li class="step${i===0?' vis hi':''}" id="step-${id}-${i}">
+          <div class="step-num">${i+1}</div>
+          <div>
+            <div>${st.fns.map(f=>`<span class="fn-pill">${f}()</span>`).join('')}</div>
+            <div class="step-title">${st.title}</div>
+            <div class="step-desc">${st.desc}</div>
+            ${st.out ? `<div class="step-out">${st.out}</div>` : ''}
+          </div>
+        </li>`).join('')}
+    </ul>
+    <div class="journey-ctrl">
+      <button class="btn btn-primary" onclick="stepForward('${id}')" id="stepBtn-${id}" style="font-size:.82rem;padding:.5rem 1.2rem">Next step →</button>
+      <button class="btn btn-ghost" onclick="resetSteps('${id}')" style="font-size:.82rem;padding:.5rem 1rem">Reset</button>
+      <span class="step-counter" id="stepCount-${id}">Step 1 of ${s.steps.length}</span>
+    </div>`;
+
+  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function stepForward(id) {
+  const s = scenarios.find(x => x.id === id);
+  const prev = document.getElementById(`step-${id}-${currentStep}`);
+  if (prev) prev.classList.remove('hi');
+  currentStep++;
+  if (currentStep >= s.steps.length) {
+    document.getElementById(`stepBtn-${id}`).textContent = '✓ Done';
+    document.getElementById(`stepBtn-${id}`).disabled = true;
+    document.getElementById(`stepCount-${id}`).textContent = `All ${s.steps.length} steps complete`;
+    return;
+  }
+  const el = document.getElementById(`step-${id}-${currentStep}`);
+  if (el) { el.classList.add('vis','hi'); el.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+  document.getElementById(`stepCount-${id}`).textContent = `Step ${currentStep+1} of ${s.steps.length}`;
+}
+
+function resetSteps(id) {
+  const s = scenarios.find(x => x.id === id);
+  currentStep = 0;
+  s.steps.forEach((_,i) => {
+    const el = document.getElementById(`step-${id}-${i}`);
+    if (!el) return;
+    el.classList.remove('vis','hi');
+    if (i===0) el.classList.add('vis','hi');
+  });
+  const btn = document.getElementById(`stepBtn-${id}`);
+  btn.textContent = 'Next step →';
+  btn.disabled = false;
+  document.getElementById(`stepCount-${id}`).textContent = `Step 1 of ${s.steps.length}`;
+}
+
+buildCommands();
+
+// ─── FUNCTION CALL GRAPH ─────────────────────────────────────────────────────
+let graphInitialized = false;
+const GROUP_COLORS = {
+  entry:'#58a6ff', command:'#3fb950', git:'#ffa657',
+  yaml:'#bc8cff', validation:'#f85149', path:'#39c5cf',
+  logging:'#6e7681', error:'#ff7b72'
+};
+const GROUP_LABELS = {
+  entry:'Entry point', command:'Commands', git:'Git operations',
+  yaml:'YAML parsing', validation:'Validation', path:'Path utilities',
+  logging:'Logging / output', error:'Error handling'
+};
+
+const NODES = [
+  {id:'main',g:'entry',d:'Parses global flags (--repo, --dry-run), dispatches subcommand, calls enable_error_trap'},
+  {id:'usage',g:'logging',d:'Prints the help text heredoc to stdout'},
+  {id:'enable_error_trap',g:'error',d:'Installs ERR trap → on_error() once. Sets -E so the trap is inherited by functions.'},
+  {id:'cmd_init',g:'command',d:'Validates args, clones backend repo, configures sparse+detach, writes wt.yaml template'},
+  {id:'cmd_add',g:'command',d:'Resolves backend, loops project(s) from wt.yaml, delegates to create_project_worktree'},
+  {id:'cmd_list',g:'command',d:'Loops all projects in wt.yaml, checks if each worktree dir exists, prints done/skip'},
+  {id:'cmd_rm',g:'command',d:'Validates project, prompts confirmation, runs worktree remove + prune'},
+  {id:'cmd_status',g:'command',d:'Loops existing worktrees, runs git status --short in each'},
+  {id:'cmd_sync',g:'command',d:'Fetches in backend, optionally pulls --rebase in each existing worktree'},
+  {id:'create_project_worktree',g:'git',d:'Core creation: validate → read yaml → mkdir → fetch → worktree add → sparse-checkout set'},
+  {id:'branch_in_use',g:'git',d:'Parses git worktree list --porcelain with awk to detect if a branch is already checked out'},
+  {id:'init_template',g:'git',d:'Derives sibling -wt directory, writes default wt.yaml template with one example project'},
+  {id:'yq_get',g:'yaml',d:'Runs yq -r "query // empty" — returns a scalar or empty string, never crashes'},
+  {id:'yq_array',g:'yaml',d:'Runs yq -r "query // [] | .[]" — streams array elements one per line'},
+  {id:'project_exists',g:'yaml',d:'Calls yq -e with --arg to test .projects | has($name). Returns exit code.'},
+  {id:'project_value',g:'yaml',d:'Reads a single field from a project profile via yq_get'},
+  {id:'project_sparse_paths',g:'yaml',d:'Reads the sparse array for a project via yq_array, one path per line'},
+  {id:'project_names',g:'yaml',d:'Reads all project keys from .projects via yq_array'},
+  {id:'worktrees_dir',g:'yaml',d:'Reads worktrees_dir, expands ~ via expand_path, validates non-empty'},
+  {id:'require_clean_yaml_project',g:'validation',d:'Checks project exists, has branch field, has base field. Calls die() on first failure.'},
+  {id:'need_cmd',g:'validation',d:'Verifies command is on PATH via command -v. Calls die() if missing.'},
+  {id:'find_backend_repo',g:'path',d:'Resolves backend: --repo override → MWT_REPO env → walk up CWD looking for .git + wt.yaml'},
+  {id:'expand_path',g:'path',d:'Expands leading ~ to $HOME. Handles paths that arrive as strings, not shell-expanded variables.'},
+  {id:'sanitize_branch_dir',g:'path',d:'Replaces / with _ in branch names to derive safe filesystem directory names'},
+  {id:'wt_yaml',g:'path',d:'Returns <repo_root>/wt.yaml — pure string construction, no I/O'},
+  {id:'abspath',g:'path',d:'Resolves a relative path to absolute using cd + pwd. Not used by commands directly.'},
+  {id:'log',g:'logging',d:'Prints "==> heading" in bold blue, matching lib.sh log()'},
+  {id:'sublog',g:'logging',d:'Prints a blank line + indented bold heading, matching lib.sh sublog()'},
+  {id:'status',g:'logging',d:'Prints indented status line: done=green, skip=yellow, error=red, plan/run=cyan, todo=purple'},
+  {id:'color',g:'logging',d:'Wraps text in ANSI escape codes when use_color() is true'},
+  {id:'command_string',g:'logging',d:'Shell-escapes an argv array into a displayable string for status lines'},
+  {id:'use_color',g:'logging',d:'Returns true when stdout is a terminal, NO_COLOR is unset, TERM != dumb'},
+  {id:'run',g:'error',d:'Dry-run: prints plan. Live: prints run + executes. On failure: calls report_error + exits.'},
+  {id:'die',g:'error',d:'Prints "mwt: message" to stderr and exits 1'},
+  {id:'on_error',g:'error',d:'ERR trap handler: captures exit code, source, line, command string. Calls report_error.'},
+  {id:'report_error',g:'error',d:'Formats and prints "    error    failed at src:line: cmd (exit N)" to stderr'},
+  {id:'is_dry_run',g:'error',d:'Returns true when DRY_RUN=1. Checked by run() and any interactive prompt.'},
+];
+
+const LINKS_RAW = [
+  ['main','enable_error_trap'],['main','cmd_init'],['main','cmd_add'],['main','cmd_list'],
+  ['main','cmd_rm'],['main','cmd_status'],['main','cmd_sync'],['main','usage'],
+  ['enable_error_trap','on_error'],
+  ['cmd_init','need_cmd'],['cmd_init','expand_path'],['cmd_init','run'],['cmd_init','wt_yaml'],
+  ['cmd_init','init_template'],['cmd_init','status'],['cmd_init','is_dry_run'],
+  ['cmd_add','need_cmd'],['cmd_add','find_backend_repo'],['cmd_add','wt_yaml'],
+  ['cmd_add','project_names'],['cmd_add','create_project_worktree'],['cmd_add','sublog'],
+  ['create_project_worktree','require_clean_yaml_project'],['create_project_worktree','worktrees_dir'],
+  ['create_project_worktree','project_value'],['create_project_worktree','sanitize_branch_dir'],
+  ['create_project_worktree','project_sparse_paths'],['create_project_worktree','run'],
+  ['create_project_worktree','branch_in_use'],['create_project_worktree','status'],
+  ['cmd_list','need_cmd'],['cmd_list','find_backend_repo'],['cmd_list','wt_yaml'],
+  ['cmd_list','worktrees_dir'],['cmd_list','project_names'],['cmd_list','project_value'],
+  ['cmd_list','sanitize_branch_dir'],['cmd_list','status'],
+  ['cmd_rm','need_cmd'],['cmd_rm','find_backend_repo'],['cmd_rm','wt_yaml'],
+  ['cmd_rm','require_clean_yaml_project'],['cmd_rm','worktrees_dir'],['cmd_rm','project_value'],
+  ['cmd_rm','sanitize_branch_dir'],['cmd_rm','run'],['cmd_rm','status'],['cmd_rm','is_dry_run'],
+  ['cmd_status','need_cmd'],['cmd_status','find_backend_repo'],['cmd_status','wt_yaml'],
+  ['cmd_status','worktrees_dir'],['cmd_status','project_names'],['cmd_status','project_value'],
+  ['cmd_status','sanitize_branch_dir'],['cmd_status','sublog'],
+  ['cmd_sync','need_cmd'],['cmd_sync','find_backend_repo'],['cmd_sync','wt_yaml'],
+  ['cmd_sync','worktrees_dir'],['cmd_sync','project_names'],['cmd_sync','project_value'],
+  ['cmd_sync','sanitize_branch_dir'],['cmd_sync','run'],['cmd_sync','status'],
+  ['find_backend_repo','expand_path'],['find_backend_repo','die'],
+  ['require_clean_yaml_project','project_exists'],['require_clean_yaml_project','project_value'],
+  ['require_clean_yaml_project','die'],
+  ['project_exists','yq_get'],
+  ['project_value','yq_get'],
+  ['project_sparse_paths','yq_array'],
+  ['project_names','yq_array'],
+  ['worktrees_dir','yq_get'],['worktrees_dir','expand_path'],['worktrees_dir','die'],
+  ['run','is_dry_run'],['run','status'],['run','command_string'],['run','report_error'],
+  ['on_error','report_error'],
+  ['report_error','status'],
+  ['need_cmd','die'],
+  ['status','color'],['log','color'],['sublog','color'],
+  ['color','use_color'],
+];
+
+// Precompute reachable set from a starting node
+function reachable(startId) {
+  const adj = {};
+  LINKS_RAW.forEach(([s,t]) => { (adj[s]||(adj[s]=[])).push(t); });
+  const visited = new Set();
+  const queue = [startId];
+  while (queue.length) {
+    const n = queue.shift();
+    if (visited.has(n)) continue;
+    visited.add(n);
+    (adj[n]||[]).forEach(c => queue.push(c));
+  }
+  return visited;
+}
+
+const CMD_CHAINS = {
+  'all': null,
+  'cmd_init': reachable('cmd_init'),
+  'cmd_add': reachable('cmd_add'),
+  'cmd_list': reachable('cmd_list'),
+  'cmd_rm': reachable('cmd_rm'),
+  'cmd_status': reachable('cmd_status'),
+  'cmd_sync': reachable('cmd_sync'),
+};
+
+function initGraph() {
+  graphInitialized = true;
+
+  // Build filter buttons
+  const fEl = document.getElementById('graphFilters');
+  const filters = [
+    {id:'all',label:'All functions'},
+    {id:'cmd_init',label:'init chain'},
+    {id:'cmd_add',label:'add chain'},
+    {id:'cmd_list',label:'list chain'},
+    {id:'cmd_rm',label:'rm chain'},
+    {id:'cmd_status',label:'status chain'},
+    {id:'cmd_sync',label:'sync chain'},
+  ];
+  filters.forEach(f => {
+    const b = document.createElement('button');
+    b.className = 'gfbtn' + (f.id==='all'?' on':'');
+    b.textContent = f.label;
+    b.onclick = () => {
+      document.querySelectorAll('.gfbtn').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      applyFilter(f.id);
+    };
+    fEl.appendChild(b);
+  });
+
+  // Legend
+  const lEl = document.getElementById('graphLegend');
+  Object.entries(GROUP_LABELS).forEach(([k,v]) => {
+    lEl.innerHTML += `<div class="legend-item"><div class="ldot" style="background:${GROUP_COLORS[k]}"></div>${v}</div>`;
+  });
+
+  const wrap = document.getElementById('graph-wrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const svg = d3.select('#graph-svg').attr('viewBox', `0 0 ${W} ${H}`);
+
+  svg.append('defs').append('marker')
+    .attr('id','markerArrow').attr('markerWidth',8).attr('markerHeight',8)
+    .attr('refX',16).attr('refY',3).attr('orient','auto')
+    .append('path').attr('d','M0,0 L0,6 L8,3 z').attr('fill','#30363d');
+
+  const nodes = NODES.map(n => ({...n}));
+  const links = LINKS_RAW.map(([s,t]) => ({source:s, target:t}));
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d=>d.id).distance(90).strength(0.5))
+    .force('charge', d3.forceManyBody().strength(-260))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collision', d3.forceCollide(28));
+
+  const linkEl = svg.append('g').selectAll('line')
+    .data(links).join('line')
+    .attr('class','link')
+    .attr('marker-end','url(#markerArrow)');
+
+  const nodeEl = svg.append('g').selectAll('g')
+    .data(nodes).join('g')
+    .attr('class','node')
+    .attr('id', d => 'gnode-' + d.id)
+    .call(d3.drag()
+      .on('start', (e,d) => { if(!e.active) sim.alphaTarget(.3).restart(); d.fx=d.x; d.fy=d.y; })
+      .on('drag', (e,d) => { d.fx=e.x; d.fy=e.y; })
+      .on('end', (e,d) => { if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
+
+  nodeEl.append('circle')
+    .attr('r', d => d.g==='entry'?14: d.g==='command'?12:9)
+    .attr('fill', d => GROUP_COLORS[d.g] + '22')
+    .attr('stroke', d => GROUP_COLORS[d.g]);
+
+  nodeEl.append('text')
+    .attr('dy', d => (d.g==='entry'?14:d.g==='command'?12:9) + 12)
+    .attr('text-anchor','middle')
+    .text(d => d.id);
+
+  const tooltip = document.getElementById('gTooltip');
+  nodeEl.on('mouseenter', function(e, d) {
+    const rect = wrap.getBoundingClientRect();
+    tooltip.innerHTML = `<div class="tt-fn">${d.id}()</div><div class="tt-grp">${GROUP_LABELS[d.g]}</div><div class="tt-desc">${d.d}</div>`;
+    tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
+    tooltip.style.top = (e.clientY - rect.top + 12) + 'px';
+    tooltip.classList.add('show');
+  }).on('mousemove', function(e) {
+    const rect = wrap.getBoundingClientRect();
+    tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
+    tooltip.style.top = (e.clientY - rect.top + 12) + 'px';
+  }).on('mouseleave', () => tooltip.classList.remove('show'));
+
+  sim.on('tick', () => {
+    linkEl
+      .attr('x1', d=>d.source.x).attr('y1', d=>d.source.y)
+      .attr('x2', d=>d.target.x).attr('y2', d=>d.target.y);
+    nodeEl.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+
+  window._mwtGraphLinks = linkEl;
+  window._mwtGraphNodes = nodeEl;
+}
+
+function applyFilter(cmdId) {
+  const chain = CMD_CHAINS[cmdId];
+  if (!chain) {
+    d3.selectAll('.node').classed('dim',false).classed('hi',false);
+    d3.selectAll('.link').classed('hi',false);
+    return;
+  }
+  d3.selectAll('.node')
+    .classed('hi', d => chain.has(d.id))
+    .classed('dim', d => !chain.has(d.id));
+  d3.selectAll('.link')
+    .classed('hi', d => chain.has(d.source.id) && chain.has(d.target.id));
+}
+
+// ─── YAML SCHEMA ─────────────────────────────────────────────────────────────
+const yamlFields = [
+  {key:'worktrees_dir', indent:0, type:'string', req:true,
+   display:'<span class="yk">worktrees_dir</span>: <span class="yv">~/Developer/_SketchUp/sbd-legionrepo-wt</span>',
+   title:'worktrees_dir',
+   desc:'Absolute (or ~-relative) path to the directory where all worktrees will be created. mwt add runs mkdir -p on this path before creating any worktree, so it does not need to exist in advance.',
+   query:'yq -r \'.worktrees_dir // empty\' wt.yaml',
+   tags:['required','string']},
+  {key:'_blank1', indent:0, display:'', title:null},
+  {key:'projects_heading', indent:0, type:'map', req:true,
+   display:'<span class="yk">projects</span>:',
+   title:'projects',
+   desc:'A YAML map (dictionary) where each key is a project profile name. The key is used as the argument to mwt add and mwt rm. It can be any string valid as a YAML map key.',
+   query:'yq -r \'.projects | keys[]\' wt.yaml',
+   tags:['required','map']},
+  {key:'profile_name', indent:1, type:'string',
+   display:'<span class="ya">  snowflake-cdp-backfill</span>:',
+   title:'&lt;profile-name&gt; key',
+   desc:'The project identifier. This is what you pass to mwt add and mwt rm. It appears in mwt list output. Can use hyphens, underscores, alphanumeric characters.',
+   query:'yq -r \'.projects | keys[]\' wt.yaml',
+   tags:['required','map-key']},
+  {key:'branch', indent:2, type:'string', req:true,
+   display:'<span class="yi1">  </span><span class="yk">    branch</span>: <span class="yv">snowflake_cdp/amp_backfill_stage</span>',
+   title:'projects.&lt;name&gt;.branch',
+   desc:'The Git branch name to create (or reuse) for this worktree. If the branch does not yet exist in the backend, mwt add creates it from base. If it already exists and is not in another worktree, it is reused. Slashes are allowed — e.g. snowflake_cdp/amp_backfill_stage.',
+   query:'yq -r \'.projects["snowflake-cdp-backfill"].branch // empty\' wt.yaml',
+   tags:['required','string']},
+  {key:'base', indent:2, type:'string', req:true,
+   display:'<span class="yi1">  </span><span class="yk">    base</span>: <span class="yv">origin/main</span>',
+   title:'projects.&lt;name&gt;.base',
+   desc:'The ref (branch, tag, or commit) to branch from when creating a new branch. Only used during git worktree add -b. If the branch already exists, base is ignored. Typically origin/main.',
+   query:'yq -r \'.projects["snowflake-cdp-backfill"].base // empty\' wt.yaml',
+   tags:['required','string']},
+  {key:'dir', indent:2, type:'string', req:false,
+   display:'<span class="yi1">  </span><span class="yk">    dir</span>: <span class="yv">snowflake_cdp_amp_backfill_stage</span>  <span class="yc"># optional</span>',
+   title:'projects.&lt;name&gt;.dir',
+   desc:'Optional override for the worktree directory name. If omitted, the dir name is auto-derived from the branch name by replacing every / with _. For example: snowflake_cdp/amp_backfill_stage → snowflake_cdp_amp_backfill_stage.',
+   query:'yq -r \'.projects["snowflake-cdp-backfill"].dir // empty\' wt.yaml',
+   tags:['optional','string']},
+  {key:'sparse_heading', indent:2, type:'array', req:true,
+   display:'<span class="yi1">  </span><span class="yk">    sparse</span>:',
+   title:'projects.&lt;name&gt;.sparse',
+   desc:'Array of paths (files or directories) to materialize in this worktree. These are passed verbatim to git sparse-checkout set. In cone mode, root-level files are always present — you only need to list subdirectories. Do not include a trailing slash.',
+   query:'yq -r \'.projects["snowflake-cdp-backfill"].sparse // [] | .[]\' wt.yaml',
+   tags:['required','string[]']},
+  {key:'sp1', indent:3, display:'<span class="yi2">      </span><span class="yv">- .agents</span>', title:null},
+  {key:'sp2', indent:3, display:'<span class="yi2">      </span><span class="yv">- .github</span>', title:null},
+  {key:'sp3', indent:3, display:'<span class="yi2">      </span><span class="yv">- .vscode</span>', title:null},
+  {key:'sp4', indent:3, display:'<span class="yi2">      </span><span class="yv">- common/shared_tasks</span>', title:null},
+  {key:'sp5', indent:3, display:'<span class="yi2">      </span><span class="yv">- projects/snowflake_cdp</span>', title:null},
+  {key:'sp6', indent:3, display:'<span class="yi2">      </span><span class="yc">      # root files (README.md, pyproject.toml)</span>', title:null},
+  {key:'sp7', indent:3, display:'<span class="yi2">      </span><span class="yc">      # are always visible in cone mode</span>', title:null},
+];
+
+const yamlDetails = {
+  worktrees_dir: yamlFields[0],
+  projects_heading: yamlFields[2],
+  profile_name: yamlFields[3],
+  branch: yamlFields[4],
+  base: yamlFields[5],
+  dir: yamlFields[6],
+  sparse_heading: yamlFields[7],
+};
+
+function buildYaml() {
+  const linesEl = document.getElementById('yamlLines');
+  yamlFields.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'yl';
+    if (f.title) { div.classList.add('clickable'); div.onclick = () => showYamlDetail(f); }
+    div.innerHTML = f.display || '&nbsp;';
+    linesEl.appendChild(div);
+  });
+}
+
+function showYamlDetail(f) {
+  document.querySelectorAll('.yl').forEach(el => el.classList.remove('sel'));
+  // find and select the clicked line
+  document.querySelectorAll('.yl').forEach(el => {
+    if (el.innerHTML.includes(f.key) || el.innerHTML === f.display) el.classList.add('sel');
+  });
+  const det = document.getElementById('yamlDetail');
+  const tagHtml = (f.tags||[]).map(t => {
+    if (t==='required') return '<span class="tag tag-req">required</span>';
+    if (t==='optional') return '<span class="tag tag-opt">optional</span>';
+    return `<span class="tag tag-grp">${t}</span>`;
+  }).join(' ');
+  det.innerHTML = `
+    <div class="det-field">${f.title}</div>
+    <div class="det-type">${tagHtml}</div>
+    <div class="det-desc">${f.desc}</div>
+    ${f.query ? `<div class="det-query"><span class="det-query-lbl">yq query used by mwt</span>${f.query}</div>` : ''}`;
+}
+
+buildYaml();
+</script>
+</body>
+</html>

@@ -17,3 +17,6 @@
 
 # Micro buffer runtime state
 micro/.config/micro/buffers/
+
+# User-specific configuration
+.local/
