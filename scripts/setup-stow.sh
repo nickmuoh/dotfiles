@@ -121,6 +121,14 @@ if is_dry_run; then
   stow_args=(-nv)
 fi
 
+local_bin_dir="$repo_root/local-bin/.local/bin"
+if [[ -d "$local_bin_dir" ]]; then
+  for helper in "$local_bin_dir"/*; do
+    [[ -f "$helper" ]] || continue
+    ensure_executable "$helper"
+  done
+fi
+
 if [[ "${ADOPT:-0}" == "1" ]]; then
   stow_args+=(--adopt)
 fi

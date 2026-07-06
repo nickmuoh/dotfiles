@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "${script_dir}/scripts/lib.sh"
+
 usage() {
   cat <<'EOF'
 Usage: ./bootstrap.sh [options]
@@ -40,6 +43,8 @@ DRY_RUN=0
 ADOPT=0
 OVERWRITE=0
 REINSTALL_TOOLS=0
+ENABLE_TREEMUX=1
+
 for arg in "$@"; do
   case "$arg" in
     -n|--dry-run)
@@ -75,10 +80,8 @@ export DRY_RUN
 export ADOPT
 export OVERWRITE
 export REINSTALL_TOOLS
-: "${ENABLE_TREEMUX:=1}"
 export ENABLE_TREEMUX
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 scripts=(
   setup-wsl.sh
   setup-tools.sh
@@ -91,8 +94,8 @@ scripts=(
 )
 
 for script in "${scripts[@]}"; do
+  ensure_executable "${script_dir}/scripts/${script}"
   "${script_dir}/scripts/${script}"
 done
 
-. "${script_dir}/scripts/lib.sh"
 log "Bootstrap complete"

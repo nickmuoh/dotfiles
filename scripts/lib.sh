@@ -133,6 +133,23 @@ require_dir() {
   [[ -d "$path" ]] || die "missing required directory: $path"
 }
 
+# Ensure a file is executable.
+# Args: $1 path to validate and chmod when needed.
+# Effects: prints a dry-run plan or runs chmod +x when the bit is missing.
+ensure_executable() {
+  local path=$1
+
+  if [[ -x "$path" ]]; then
+    return 0
+  fi
+
+  if is_dry_run; then
+    status plan "chmod +x $path"
+  else
+    run chmod +x "$path"
+  fi
+}
+
 # Remove temp directories registered by make_temp_dir.
 # Args: none. Reads __BOOTSTRAP_TEMP_DIRS.
 # Effects: removes registered directories that still exist.
