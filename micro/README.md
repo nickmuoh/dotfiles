@@ -53,6 +53,8 @@
   - `gitStatus` is enabled via `pluginrepos` and shown in the status bar
   - `fzfinder` is installed from the custom repo and exposed as `F9`
   - `preview` is installed from the custom repo and exposed as `F8`
+  - `jump` is installed through Micro's plugin manager
+  - `wc` is installed through Micro's plugin manager
   - `palettero.cfg` includes `fzfinder` and `preview` as palette commands
 - Custom key bindings:
   - `F9` -> `command:fzfinder`
@@ -61,6 +63,16 @@
 - Palettero custom menu entries in `palettero.cfg`:
   - `fzfinder`
   - `preview`
+
+## Setup flow
+
+- `micro -plugin install gitStatus`
+- `micro -plugin install preview`
+- `micro -plugin install fzfinder`
+- `micro -plugin install jump`
+- `micro -plugin install wc`
+- `git clone https://github.com/terokarvinen/palettero ~/.config/micro/plug/palettero`
+- `git clone https://github.com/dalekirkwood/Micro_Editor_Iconic_Tabs ~/.config/micro/plug/iconic_tabs`
 
 ## History-backed setup notes
 
@@ -75,7 +87,9 @@
 
 ## Caveats
 
-- Only `gitStatus` appears explicitly in shell history as a plugin install command; the other micro plugins are confirmed by files on disk, not by recorded install commands in `~/.bash_history`.
+- `jump` and `wc` use Micro's default plugin index, so they do not need custom `pluginrepos` entries.
+- `palettero` still uses a manual clone because its README documents development install only.
+- `iconic_tabs` still uses a manual clone or copy into `~/.config/micro/plug/iconic_tabs`.
 - `fzfinder` and some other plugins assume `fzf` is installed and reachable in `PATH`.
 - `fzfinder` preview is wired to `batcat`, so the preview experience depends on the `bat`/`batcat` package being installed.
 - `preview` depends on `pandoc` being installed and available in `PATH`.
