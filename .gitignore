@@ -15,8 +15,9 @@
 *.swo
 *.tmp
 
-# Micro buffer runtime state
-micro/.config/micro/buffers
+# Micro runtime files
+micro/.config/micro/buffers/
+micro/.config/micro/backups/
 
 # User-specific configuration
 .local/

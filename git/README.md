@@ -61,6 +61,10 @@ When using 1Password from WSL, point Git at the Windows signer binary instead:
 
 For the 1Password signer to work, the matching private key must exist in 1Password as an `SSH Key` item and be visible through the active `agent.toml` rules. A custom `agent.toml` overrides the default vault scope.
 
+To confirm the key Git should use, run `ssh-add.exe -L` in WSL and copy the public key it returns into `user.signingkey`.
+
+If `agent.toml` exists at `%LOCALAPPDATA%/1Password/config/ssh/agent.toml`, 1Password uses only the keys matched by that file instead of the default Personal/Private/Employee set.
+
 ## Difftastic integration
 
 See `difftastic.md` in the repo root for full docs.
