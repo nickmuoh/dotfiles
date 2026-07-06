@@ -127,6 +127,8 @@ fi
 # SSH
 #
 if command -v keychain >/dev/null 2>&1; then
+     # Clear out any dead lock files left over from a wsl --shutdown
+    rm -f "$HOME/.keychain/"*-lockf 2>/dev/null
     # keychain v3: SSH auth only; --quiet suppresses non-error output (passphrase prompts still use terminal)
     eval "$(keychain add --quiet --eval "$HOME/.ssh/nick_muoh.trimble-github.ed25519")"
 fi
