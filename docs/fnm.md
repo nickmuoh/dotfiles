@@ -30,7 +30,7 @@ eval "$(fnm env --use-on-cd --shell bash)"
 ## Postinstall commands
 
 `scripts/setup-postinstall.sh` prints these follow-up commands when `fnm` is
-available:
+available, and marks them `done` when they are already satisfied:
 
 ```sh
 fnm install --lts

@@ -19,7 +19,7 @@ Installed by `scripts/setup-tools.sh` with the official installer:
 ## Managed Python
 
 `scripts/setup-postinstall.sh` prints this follow-up command when `uv` is
-available:
+available, and marks it `done` when the Python is already installed:
 
 ```sh
 uv python install 3.12
