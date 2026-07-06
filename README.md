@@ -126,6 +126,8 @@ ENABLE_TREEMUX=0 ./bootstrap.sh
 
 Bootstrap clones generated/plugin content and stows the packages listed in
 `scripts/setup-stow.sh`.
+After stowing `local-bin`, `setup-postinstall.sh` runs `sync-agent-skills`
+when `~/.agents/.skill-lock.json` and the Node tooling are available.
 
 ## Bootstrap output
 

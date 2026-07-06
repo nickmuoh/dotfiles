@@ -9,6 +9,7 @@
 # Agent workspace
 /.local/
 /.cortex/
+agents/.agents/skills/
 
 # Editor cruft
 *.swp

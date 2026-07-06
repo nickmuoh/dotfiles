@@ -40,5 +40,35 @@ else
   status skip "uv not found; skipping Python 3.12 reminder"
 fi
 
+repo_sync_helper="$(bootstrap_root)/local-bin/.local/bin/sync-agent-skills"
+
+sync_agent_skills_cmd() {
+  if command -v sync-agent-skills >/dev/null 2>&1; then
+    printf '%s\n' sync-agent-skills
+    return 0
+  fi
+
+  if [ -x "$repo_sync_helper" ]; then
+    printf '%s\n' "$repo_sync_helper"
+    return 0
+  fi
+
+  return 1
+}
+
+if [ -f "$HOME/.agents/.skill-lock.json" ]; then
+  if sync_cmd="$(sync_agent_skills_cmd)"; then
+    if is_dry_run; then
+      status plan "$sync_cmd"
+    else
+      run "$sync_cmd"
+    fi
+  else
+    status todo "sync-agent-skills after ~/.agents/.skill-lock.json is available and node tooling is installed"
+  fi
+else
+  status todo "sync-agent-skills after ~/.agents/.skill-lock.json is available and node tooling is installed"
+fi
+
 status todo "ssh-add ~/.ssh/nick_muoh.trimble-github.ed25519"
 status todo "source ~/.bashrc"
