@@ -6,6 +6,7 @@ Tracked global git configuration (`~/.gitconfig`), managed via Stow.
 
 - `~/.gitconfig` — symlinked from this stow package
 - `~/.gitconfig.local` — **not tracked** — holds `[user]` name/email; create manually on each machine
+- `%LOCALAPPDATA%/1Password/config/ssh/agent.toml` — optional 1Password SSH agent scope file (WSL path: `/mnt/c/Users/<user>/AppData/Local/1Password/config/ssh/agent.toml`)
 
 ## Setup
 
@@ -24,6 +25,41 @@ Then stow:
 ```sh
 stow -v git
 ```
+
+## Optional SSH commit signing
+
+When using a local SSH key loaded into `ssh-agent`/`keychain`, keep the signing config in `~/.gitconfig.local`:
+
+```ini
+[user]
+    signingkey = ~/.ssh/<public-key>.ed25519.pub
+
+[gpg]
+    format = ssh
+
+[commit]
+    gpgsign = true
+```
+
+Use the public key path for `user.signingkey`; Git signs through the matching private key already loaded in the agent.
+
+When using 1Password from WSL, point Git at the Windows signer binary instead:
+
+```ini
+[user]
+    signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...
+
+[gpg]
+    format = ssh
+
+[gpg "ssh"]
+    program = /mnt/c/Users/<user>/AppData/Local/Microsoft/WindowsApps/op-ssh-sign-wsl.exe
+
+[commit]
+    gpgsign = true
+```
+
+For the 1Password signer to work, the matching private key must exist in 1Password as an `SSH Key` item and be visible through the active `agent.toml` rules. A custom `agent.toml` overrides the default vault scope.
 
 ## Difftastic integration
 
