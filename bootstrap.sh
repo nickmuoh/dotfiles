@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "${script_dir}/scripts/lib.sh"
+source "${script_dir}/scripts/lib.sh"
 
 usage() {
   cat <<'EOF'
