@@ -1,6 +1,7 @@
 # snowflake
 
-Stow package for Snowflake CLI and Cortex Code configuration.
+Stow package for Snowflake CLI and Cortex Code configuration. The `cortex`
+binary is installed by `scripts/setup-tools.sh` from Snowflake's installer.
 
 ## Files
 
