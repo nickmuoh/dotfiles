@@ -266,6 +266,7 @@ INSTALLER_TOOLS=(
   "fnm|https://fnm.vercel.app/install||bash|-s -- --skip-shell --install-dir \"$HOME/.fnm\""
   "micro|https://getmic.ro|/usr/bin/micro"
   "copilot|https://gh.io/copilot-install||bash"
+  "claude|https://claude.ai/install.sh||bash"
   "cortex|https://ai.snowflake.com/static/cc-scripts/install.sh"
 )
 
