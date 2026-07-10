@@ -43,6 +43,17 @@ fi
 repo_root="$(bootstrap_root)"
 all_packages=(bash micro tmux treemux tmux-cpu-mem-monitor nvim starship fzf fnm local-bin bash-completions claude)
 
+if bootstrap_package_mode; then
+  packages=()
+  for pkg in "${all_packages[@]}"; do
+    if bootstrap_package_selected "$pkg"; then
+      packages+=("$pkg")
+    fi
+  done
+else
+  packages=("${all_packages[@]}")
+fi
+
 if [[ "${ADOPT:-0}" == "1" && "${OVERWRITE:-0}" == "1" ]]; then
   die "--adopt and --overwrite cannot be used together"
 fi

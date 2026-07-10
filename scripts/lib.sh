@@ -21,6 +21,35 @@ is_dry_run() {
   [[ "${DRY_RUN:-0}" == "1" ]]
 }
 
+# Return success when bootstrap package mode is active.
+# Args: none. Reads BOOTSTRAP_PACKAGES from environment.
+bootstrap_package_mode() {
+  [[ -n "${BOOTSTRAP_PACKAGES:-}" ]]
+}
+
+# Return success when any selected bootstrap package matches one of the names.
+# Args: $@ package names to match against the selected package list.
+# Returns: 0 when package mode is off or any name matches.
+bootstrap_package_selected() {
+  local requested selected candidate
+  local -a requested_packages=()
+
+  if ! bootstrap_package_mode; then
+    return 0
+  fi
+
+  read -r -a requested_packages <<< "${BOOTSTRAP_PACKAGES:-}"
+  for candidate in "$@"; do
+    for selected in "${requested_packages[@]}"; do
+      if [[ "$selected" == "$candidate" ]]; then
+        return 0
+      fi
+    done
+  done
+
+  return 1
+}
+
 # Return success when colored output should be emitted.
 # Args: none. Reads NO_COLOR and TERM from environment.
 # Returns: 0 when stdout is interactive and color is allowed.

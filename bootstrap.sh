@@ -20,6 +20,7 @@ Runs the shell setup bootstrap scripts in order:
 
 Options:
   -n, --dry-run          Print planned commands without changing files
+  -p, --package NAME     Install only selected package-scoped items
       --adopt            Pass --adopt to GNU Stow when stowing packages
       --overwrite        Remove existing package-file targets before stowing
       --reinstall-tools  Reinstall or refresh tools even when already installed
@@ -35,6 +36,7 @@ Examples:
   ./bootstrap.sh --adopt
   ./bootstrap.sh --overwrite
   ./bootstrap.sh --reinstall-tools
+  ./bootstrap.sh --package claude
   ENABLE_TREEMUX=0 ./bootstrap.sh
 EOF
 }
@@ -44,20 +46,38 @@ ADOPT=0
 OVERWRITE=0
 REINSTALL_TOOLS=0
 ENABLE_TREEMUX=1
+declare -a BOOTSTRAP_PACKAGES=()
 
-for arg in "$@"; do
-  case "$arg" in
+while (($#)); do
+  case "$1" in
     -n|--dry-run)
       DRY_RUN=1
+      shift
+      ;;
+    -p|--package)
+      if [ "$#" -lt 2 ]; then
+        printf 'bootstrap: missing value for %s\n' "$1" >&2
+        usage >&2
+        exit 1
+      fi
+      BOOTSTRAP_PACKAGES+=("$2")
+      shift 2
+      ;;
+    --package=*)
+      BOOTSTRAP_PACKAGES+=("${1#*=}")
+      shift
       ;;
     --adopt)
       ADOPT=1
+      shift
       ;;
     --overwrite)
       OVERWRITE=1
+      shift
       ;;
     --reinstall-tools)
       REINSTALL_TOOLS=1
+      shift
       ;;
     -h|--help)
       usage
@@ -81,17 +101,25 @@ export ADOPT
 export OVERWRITE
 export REINSTALL_TOOLS
 export ENABLE_TREEMUX
+export BOOTSTRAP_PACKAGES="${BOOTSTRAP_PACKAGES[*]}"
 
-scripts=(
-  setup-wsl.sh
-  setup-tools.sh
-  setup-stow.sh
-  setup-micro.sh
-  setup-tmux.sh
-  setup-treemux.sh
-  setup-nvim.sh
-  setup-postinstall.sh
-)
+if bootstrap_package_mode; then
+  scripts=(
+    setup-tools.sh
+    setup-stow.sh
+  )
+else
+  scripts=(
+    setup-wsl.sh
+    setup-tools.sh
+    setup-stow.sh
+    setup-micro.sh
+    setup-tmux.sh
+    setup-treemux.sh
+    setup-nvim.sh
+    setup-postinstall.sh
+  )
+fi
 
 for script in "${scripts[@]}"; do
   ensure_executable "${script_dir}/scripts/${script}"

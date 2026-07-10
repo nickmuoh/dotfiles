@@ -60,6 +60,8 @@ APT_PACKAGES=(
   gnome-keyring libsecret-1-0 xdg-utils
 )
 
+if ! bootstrap_package_mode; then
+
 ## [github release versions]
 # Update the version variable here when upgrading a tool.
 # nvim uses the /latest/ GitHub redirect and does not need a pinned version.
@@ -249,6 +251,8 @@ for entry in "${SNAP_PACKAGES[@]}"; do
   fi
 done
 
+fi  # end non-package-mode sections
+
 ## [installer scripts]
 # Tools installed via their own installer scripts.
 #
@@ -274,6 +278,9 @@ log "installer scripts"
 for entry in "${INSTALLER_TOOLS[@]}"; do
   IFS='|' read -r cmd url dest shell shell_args <<< "$entry"
   shell="${shell:-sh}"
+  if ! bootstrap_package_selected "$cmd"; then
+    continue
+  fi
   if should_reinstall_tools || ! command_exists "$cmd"; then
     sublog "$cmd"
     if [ -n "${dest:-}" ]; then
@@ -295,6 +302,8 @@ for entry in "${INSTALLER_TOOLS[@]}"; do
     status skip "$cmd already installed"
   fi
 done
+
+if ! bootstrap_package_mode; then
 
 ## [fzf]
 # Installed via git clone + bundled install script (not a pipe-to-sh installer).
@@ -345,3 +354,5 @@ if command_exists fdfind; then
 else
   status skip "fd (fdfind) not installed"
 fi
+
+fi  # end non-package-mode sections
