@@ -6,8 +6,9 @@ usage() {
 Usage: sync-agent-skills [options]
 
 Options:
-  -n, --dry-run   Print the skills that would be installed
-  -h, --help      Show this help message
+  -n, --dry-run        Print the skills that would be installed
+  -a, --agent <names>  Also sync to these agents (repeatable, pass '*' for all)
+  -h, --help           Show this help message
 
 Environment:
   LOCKFILE        Override the lockfile path (default: ~/.agents/.skill-lock.json)
@@ -23,18 +24,36 @@ need_cmd() {
 
 DRY_RUN=0
 LOCKFILE="${LOCKFILE:-$HOME/.agents/.skill-lock.json}"
+AGENTS=()
 
-for arg in "$@"; do
-  case "$arg" in
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     -n|--dry-run)
       DRY_RUN=1
+      shift
+      ;;
+    -a|--agent)
+      shift
+      if [ "$#" -eq 0 ] || [ "${1#-}" != "$1" ]; then
+        printf 'sync-agent-skills: --agent requires at least one agent name\n' >&2
+        usage >&2
+        exit 1
+      fi
+      while [ "$#" -gt 0 ] && [ "${1#-}" = "$1" ]; do
+        AGENTS+=("$1")
+        shift
+      done
+      ;;
+    --agent=*)
+      AGENTS+=("${1#*=}")
+      shift
       ;;
     -h|--help)
       usage
       exit 0
       ;;
     *)
-      printf 'sync-agent-skills: unknown argument: %s\n' "$arg" >&2
+      printf 'sync-agent-skills: unknown argument: %s\n' "$1" >&2
       usage >&2
       exit 1
       ;;
@@ -71,9 +90,18 @@ for entry in "${source_groups[@]}"; do
   read -r -a skills <<< "$skill_list"
 
   if [ "$DRY_RUN" -eq 1 ]; then
-    printf 'sync-agent-skills: would install %s -> %s\n' "$source" "$skill_list"
+    if [ "${#AGENTS[@]}" -eq 0 ]; then
+      printf 'sync-agent-skills: would install %s -> %s (global)\n' "$source" "$skill_list"
+    else
+      printf 'sync-agent-skills: would install %s -> %s (agents: %s)\n' "$source" "$skill_list" "${AGENTS[*]}"
+    fi
   else
-    printf 'sync-agent-skills: installing %s -> %s\n' "$source" "$skill_list"
-    npx skills add "$source" -g -y --skill "${skills[@]}"
+    if [ "${#AGENTS[@]}" -eq 0 ]; then
+      printf 'sync-agent-skills: installing %s -> %s (global)\n' "$source" "$skill_list"
+      npx skills add "$source" -g -y --skill "${skills[@]}"
+    else
+      printf 'sync-agent-skills: installing %s -> %s (agents: %s)\n' "$source" "$skill_list" "${AGENTS[*]}"
+      npx skills add "$source" -g -y --agent "${AGENTS[@]}" --skill "${skills[@]}"
+    fi
   fi
 done

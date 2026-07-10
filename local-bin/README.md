@@ -13,3 +13,4 @@
 - `mwt` is installed by stowing `local-bin`: `stow -v local-bin`
 - `mwt` reads `wt.yaml` from the backend repo root and depends on `git` plus the Python `yq` wrapper available on `PATH`
 - `sync-agent-skills` depends on `jq` and `npx`; it reads the stowed lockfile and runs `npx skills add <skill> -g -y` for each entry
+- `sync-agent-skills --agent <names...>` also syncs each skill to the named agents; pass `*` to target all supported agents
