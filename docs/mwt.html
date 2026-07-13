@@ -378,9 +378,9 @@ const scenarios = [
   {
     id:'add', icon:'⚔️', color:'#3fb950', bg:'rgba(63,185,80,.12)',
     name:'mwt add', quest:'Dispatching the Expedition',
-    desc:'Create a new isolated worktree from a project profile in wt.yaml, with sparse checkout configured automatically.',
+    desc:'Create a new isolated worktree from a project profile in wt.yaml. If it already exists, leave it alone and report it as skipped.',
     syntax:'mwt add snowflake-cdp',
-    narrative:'The sacred scroll has been written. Now you dispatch an expedition — a new outpost in the realm, carrying only the paths it needs, on its own dedicated branch. The Fortress lends its Git objects but remains untouched. Every decision (branch name, base, sparse paths) comes from wt.yaml, not from you at the prompt.',
+    narrative:'The sacred scroll has been written. Now you dispatch an expedition — a new outpost in the realm, carrying only the paths it needs, on its own dedicated branch. If the outpost already exists, the command leaves it alone and reports the project as skipped. Every decision (branch name, base, sparse paths) comes from wt.yaml, not from you at the prompt.',
     steps:[
       {fns:['main','cmd_add'],title:'Rallying the troops',desc:'main() dispatches to cmd_add. need_cmd checks both git and yq. find_backend_repo() resolves the backend: checks --repo override, then MWT_REPO env var, then walks up from CWD looking for a directory with both .git and wt.yaml.',out:''},
       {fns:['wt_yaml','require_clean_yaml_project'],title:'Reading the Scroll',desc:'wt_yaml() returns <backend>/wt.yaml. require_clean_yaml_project() calls project_exists (yq -e has()), then checks branch and base fields exist. Any missing field aborts with die().',out:''},
@@ -389,7 +389,7 @@ const scenarios = [
       {fns:['run'],title:'Claiming the land',desc:'run mkdir -p <worktrees_dir> creates the parent directory if it does not exist. Idempotent — safe to run even if the directory already exists.',out:'    run      mkdir -p ~/Developer/sbd-legionrepo-wt'},
       {fns:['run'],title:'Fetching intelligence',desc:'git fetch --all --prune in the backend updates its knowledge of all remote branches and prunes stale tracking refs.',out:'    run      git -C backend fetch --all --prune'},
       {fns:['branch_in_use','run'],title:'Raising the flag',desc:'If the branch already exists locally AND is not checked out elsewhere, git worktree add <path> <branch>. If branch is new: git worktree add -b <branch> <path> <base>. If already in another worktree: die().',out:'    run      git -C backend worktree add -b snowflake_cdp/amp_backfill ~/Developer/.../snowflake_cdp_amp_backfill origin/main'},
-      {fns:['run','status'],title:'Laying out the camp',desc:'In the new worktree: git sparse-checkout init --cone, then git sparse-checkout set with all the paths from the sparse array. Only those directories materialize on disk.',out:'    run      git -C worktree sparse-checkout init --cone\n    run      git -C worktree sparse-checkout set .agents .github common/shared_tasks projects/snowflake_cdp\n    done     snowflake-cdp -> ~/Developer/.../snowflake_cdp_amp_backfill'},
+      {fns:['run','status'],title:'Laying out the camp',desc:'In the new worktree: git sparse-checkout init --cone, then git sparse-checkout set with all the paths from the sparse array. If the worktree already exists, status skip is printed and nothing changes.',out:'    run      git -C worktree sparse-checkout init --cone\n    run      git -C worktree sparse-checkout set .agents .github common/shared_tasks projects/snowflake_cdp\n    skip     snowflake-cdp already exists: ~/Developer/.../snowflake_cdp_amp_backfill'},
     ]
   },
   {
@@ -436,14 +436,14 @@ const scenarios = [
   {
     id:'sync', icon:'🌐', color:'#39c5cf', bg:'rgba(57,197,207,.12)',
     name:'mwt sync', quest:'The Resupply Mission',
-    desc:'Fetch from origin in the backend. With --pull, also rebase each existing worktree.',
+    desc:'Fetch from origin in the backend. Then refresh each existing worktree so its sparse checkout matches wt.yaml; with --pull, also rebase them.',
     syntax:'mwt sync --pull',
-    narrative:'The remote repository has new commits. First, the Fortress fetches all updates into its shared object store — all worktrees benefit simultaneously. Then, with --pull, each active outpost gets its branch rebased onto the latest upstream, without you having to cd into each one manually.',
+    narrative:'The remote repository has new commits. First, the Fortress fetches all updates into its shared object store — all worktrees benefit simultaneously. Then every existing outpost re-applies the current sparse paths from wt.yaml, and with --pull each branch is rebased onto the latest upstream without you having to cd into each one manually.',
     steps:[
       {fns:['find_backend_repo','wt_yaml'],title:'Mobilizing',desc:'Resolves backend and reads wt.yaml. Checks whether the --pull flag was passed. Any unexpected argument causes die() to print the usage hint.',out:''},
       {fns:['run'],title:'Central resupply',desc:'git fetch --all --prune in the backend downloads all new commits and objects into the shared .git/ store. Every worktree now has access to the new content.',out:'    run      git -C backend fetch --all --prune'},
       {fns:['project_names','project_value'],title:'Identifying outposts (--pull)',desc:'If --pull was requested: iterates all projects, derives each worktree path, checks if the directory exists.',out:''},
-      {fns:['run','status'],title:'Resupplying each outpost',desc:'For existing worktrees: git -C <path> pull --rebase rebases the local branch on top of the updated upstream. For non-existent worktrees: status skip is printed and that project is skipped.',out:'    run      git -C ~/Developer/.../snowflake_cdp_amp_backfill pull --rebase\n    skip     analytics not created: ~/Developer/.../feature_analytics'},
+      {fns:['run','status'],title:'Resupplying each outpost',desc:'For existing worktrees: first reapply the sparse checkout from wt.yaml, then git -C <path> pull --rebase rebases the local branch on top of the updated upstream. For non-existent worktrees: status skip is printed and that project is skipped.',out:'    run      git -C ~/Developer/.../snowflake_cdp_amp_backfill sparse-checkout set .agents .github common/shared_tasks projects/snowflake_cdp\n    run      git -C ~/Developer/.../snowflake_cdp_amp_backfill pull --rebase\n    skip     analytics not created: ~/Developer/.../feature_analytics'},
     ]
   },
 ];

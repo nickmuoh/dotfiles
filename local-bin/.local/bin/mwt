@@ -213,6 +213,20 @@ project_sparse_paths() {
   yq_array "$file" ".projects[\"${project}\"].sparse"
 }
 
+configure_project_sparse_checkout() {
+  local worktree_path=$1
+  local yaml_file=$2
+  local project=$3
+  local sparse_paths=()
+
+  [[ -d "$worktree_path" ]] || die "worktree does not exist: $worktree_path"
+  mapfile -t sparse_paths < <(project_sparse_paths "$yaml_file" "$project")
+  [[ ${#sparse_paths[@]} -gt 0 ]] || die "project '$project' is missing sparse paths"
+
+  run git -C "$worktree_path" sparse-checkout init --cone
+  run git -C "$worktree_path" sparse-checkout set "${sparse_paths[@]}"
+}
+
 project_names() {
   local file=$1
   yq_array "$file" '.projects | keys'
@@ -339,11 +353,13 @@ create_project_worktree() {
   worktree_path="$root_dir/$dir_name"
 
   if [[ -e "$worktree_path" ]]; then
+    if git -C "$worktree_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      status skip "$project already exists: $worktree_path"
+      return 0
+    fi
+
     die "worktree path already exists: $worktree_path"
   fi
-
-  mapfile -t sparse_paths < <(project_sparse_paths "$yaml_file" "$project")
-  [[ ${#sparse_paths[@]} -gt 0 ]] || die "project '$project' is missing sparse paths"
 
   run mkdir -p "$root_dir"
   run git -C "$repo_root" fetch --all --prune
@@ -358,8 +374,7 @@ create_project_worktree() {
     run git -C "$repo_root" worktree add -b "$branch" "$worktree_path" "$base"
   fi
 
-  run git -C "$worktree_path" sparse-checkout init --cone
-  run git -C "$worktree_path" sparse-checkout set "${sparse_paths[@]}"
+  configure_project_sparse_checkout "$worktree_path" "$yaml_file" "$project"
   status done "$project -> $worktree_path"
 }
 
@@ -513,9 +528,6 @@ cmd_sync() {
   root_dir=$(worktrees_dir "$yaml_file")
 
   run git -C "$repo_root" fetch --all --prune
-  if [[ "$do_pull" != "1" ]]; then
-    return 0
-  fi
 
   while IFS= read -r project; do
     [[ -n "$project" ]] || continue
@@ -526,6 +538,10 @@ cmd_sync() {
     fi
     worktree_path="$root_dir/$dir_name"
     if [[ -d "$worktree_path" ]]; then
+      configure_project_sparse_checkout "$worktree_path" "$yaml_file" "$project"
+      if [[ "$do_pull" != "1" ]]; then
+        continue
+      fi
       run git -C "$worktree_path" pull --rebase
     else
       status skip "$project not created: $worktree_path"
