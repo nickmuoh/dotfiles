@@ -1,0 +1,17 @@
+{
+  "theme": "dark",
+  "packages": [
+    "npm:@ollama/pi-web-search",
+    "npm:@jamesjfoong/pi-ollama"
+  ],
+  "hideThinkingBlock": true,
+  "ollama": {
+    "baseUrl": "http://172.17.48.1:11435",
+    "cloudUrl": "https://ollama.com",
+    "apiKey": "ollama"
+  },
+  "lastChangelogVersion": "0.80.6",
+  "defaultProvider": "ollama",
+  "defaultModel": "coder-agent-m:qwen35-9b",
+  "defaultThinkingLevel": "medium"
+}

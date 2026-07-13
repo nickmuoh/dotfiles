@@ -1,0 +1,34 @@
+{
+  "baseUrl": "http://127.0.0.1:11435",
+  "apiKey": "ollama",
+  "api": "openai-completions",
+  "compat": {
+    "supportsDeveloperRole": false,
+    "supportsReasoningEffort": true,
+    "thinkingFormat": "openai"
+  },
+  "authHeader": true,
+  "prefix": "/v1",
+  "version": 1,
+  "modelOverrides": {
+    "coder-agent-m:qwen35-9b": {
+      "name": "Medium Coder Agent (Qwen3.5-9b)",
+      "contextWindow": 32768,
+      "reasoning": true,
+      "thinkingLevelMap": {
+        "off": "none",
+        "minimal": null,
+        "low": null,
+        "medium": null,
+        "high": null,
+        "xhigh": null
+      },
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      }
+    }
+  }
+}
