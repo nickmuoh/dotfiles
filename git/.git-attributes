@@ -1,0 +1,5 @@
+# Default to difftastic for all tracked files.
+* diff=difftastic
+
+# Use nbdime for notebook diffs and merges.
+*.ipynb diff=jupyternotebook merge=jupyternotebook

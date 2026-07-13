@@ -69,8 +69,9 @@ If `agent.toml` exists at `%LOCALAPPDATA%/1Password/config/ssh/agent.toml`, 1Pas
 
 See `difftastic.md` in the repo root for full docs.
 
-- `diff.external = difft` is the primary integration (preferred — passes renames and permissions)
+- `[diff "difftastic"] command = difft` is the primary integration
 - `[difftool "difftastic"]` is kept as a fallback
+- `~/.git-attributes` routes `*.ipynb` to `jupyternotebook`
 
 ### Aliases
 

@@ -25,9 +25,11 @@ Git config and aliases reference `difft` (the wrapper), not `difftastic` directl
 
 Configured in the `git` stow package (`~/.gitconfig`).
 
-The recommended integration is `diff.external = difft`, which passes renames and
-permission changes to difftastic for richer output. The difftool definition is kept
-as a fallback for explicit `git difftool` use.
+The recommended integration is `[diff "difftastic"] command = difft`, combined
+with `~/.git-attributes` to route `*.ipynb` to the nbdime diff and merge
+drivers. `core.attributesFile` points Git at that tracked file. This keeps
+difftastic as the default for normal files while notebooks use nbdime. The
+difftool definition is kept as a fallback for explicit `git difftool` use.
 
 ### Aliases
 
