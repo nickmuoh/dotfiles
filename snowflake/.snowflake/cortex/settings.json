@@ -1,5 +1,6 @@
 {
   "theme": "dark",
+  "autoUpdate": false,
   "cortexAgentConnectionName": "cortexcode",
   "model": "claude-sonnet-4-6"
 }
