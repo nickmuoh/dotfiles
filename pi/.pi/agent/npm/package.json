@@ -1,0 +1,24 @@
+{
+  "name": "pi-extensions",
+  "private": true,
+  "scripts": {
+    "postinstall": "patch-package"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1"
+  },
+  "dependencies": {
+    "@jamesjfoong/pi-ollama": "^1.0.1",
+    "@juicesharp/rpiv-ask-user-question": "^1.20.0",
+    "@ollama/pi-web-search": "^0.0.5",
+    "@tintinweb/pi-subagents": "^0.14.1",
+    "@tintinweb/pi-tasks": "^0.7.1",
+    "pi-context": "^2.1.0",
+    "pi-context-tools": "^0.1.1",
+    "pi-double-esc": "^1.0.2",
+    "pi-intercom": "^0.6.0",
+    "pi-json-tools": "^5.2.2",
+    "pi-mono-clear": "^1.7.3",
+    "pi-prompt-template-model": "^0.10.0"
+  }
+}

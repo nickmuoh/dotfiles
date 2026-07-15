@@ -41,7 +41,7 @@ if ! is_dry_run; then
 fi
 
 repo_root="$(bootstrap_root)"
-all_packages=(bash micro tmux treemux tmux-cpu-mem-monitor nvim starship fzf fnm local-bin bash-completions claude)
+all_packages=(bash micro tmux treemux tmux-cpu-mem-monitor nvim starship fzf fnm local-bin bash-completions claude pi)
 
 if bootstrap_package_mode; then
   packages=()

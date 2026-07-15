@@ -1,0 +1,15 @@
+--- a/node_modules/pi-zentui/extensions/zentui/runtime.ts
++++ b/node_modules/pi-zentui/extensions/zentui/runtime.ts
+@@ -285,6 +285,12 @@
+ 			],
+ 		},
+ 		version: async () => {
++			const venv = process.env.VIRTUAL_ENV;
++			if (venv) {
++				const venvPy = await runVersion(join(venv, "bin", "python3"), ["--version"]);
++				const m = venvPy?.match(/Python\s+([0-9][^\s]*)/i);
++				if (m?.[1]) return prefixVersion(m[1]);
++			}
+ 			const python3 = await runVersion("python3", ["--version"]);
+ 			const python3Match = python3?.match(/Python\s+([0-9][^\s]*)/i);
+ 			if (python3Match?.[1]) return prefixVersion(python3Match[1]);

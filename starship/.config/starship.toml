@@ -8,6 +8,7 @@ read_only = " 󰌾"
 
 [aws]
 symbol = "  "
+disabled = true
 
 [buf]
 symbol = " "
@@ -160,6 +161,8 @@ symbol = " "
 
 [python]
 symbol = " "
+# Forces Starship to evaluate versions safely via uv's tracking environment
+python_binary = [".venv/bin/python", "python3", "python"]
 
 [rlang]
 symbol = "󰟔 "

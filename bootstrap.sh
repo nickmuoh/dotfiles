@@ -16,6 +16,7 @@ Runs the shell setup bootstrap scripts in order:
   setup-tmux.sh
   setup-treemux.sh
   setup-nvim.sh
+  setup-pi.sh
   setup-postinstall.sh
 
 Options:
@@ -107,6 +108,7 @@ if bootstrap_package_mode; then
   scripts=(
     setup-tools.sh
     setup-stow.sh
+    setup-pi.sh
   )
 else
   scripts=(
@@ -117,6 +119,7 @@ else
     setup-tmux.sh
     setup-treemux.sh
     setup-nvim.sh
+    setup-pi.sh
     setup-postinstall.sh
   )
 fi

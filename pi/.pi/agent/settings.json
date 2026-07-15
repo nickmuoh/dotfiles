@@ -2,7 +2,15 @@
   "theme": "dark",
   "packages": [
     "npm:@ollama/pi-web-search",
-    "npm:@jamesjfoong/pi-ollama"
+    "npm:@jamesjfoong/pi-ollama",
+    "npm:pi-context",
+    "npm:@tintinweb/pi-tasks",
+    "npm:@tintinweb/pi-subagents",
+    "npm:pi-intercom",
+    "npm:pi-prompt-template-model",
+    "npm:pi-context-tools",
+    "npm:@juicesharp/rpiv-ask-user-question",
+    "npm:pi-double-esc"
   ],
   "hideThinkingBlock": true,
   "ollama": {
@@ -10,8 +18,8 @@
     "cloudUrl": "https://ollama.com",
     "apiKey": "ollama"
   },
-  "lastChangelogVersion": "0.80.6",
-  "defaultProvider": "ollama",
-  "defaultModel": "coder-agent-m:qwen35-9b",
+  "lastChangelogVersion": "0.80.7",
+  "defaultProvider": "github-copilot",
+  "defaultModel": "gpt-5.6-terra",
   "defaultThinkingLevel": "medium"
 }
