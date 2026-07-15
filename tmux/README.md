@@ -28,6 +28,8 @@
 
 - tmux uses `default-terminal "tmux-256color"`.
 - `terminal-features` enables RGB/truecolor for `tmux-256color` and `xterm-256color`.
+- `extended-keys` is enabled so tmux forwards modern modified key sequences.
+- `extended-keys-format` is set to `csi-u` for modern key encoding compatibility.
 - `update-environment` copies `DBUS_SESSION_BUS_ADDRESS`, `GNOME_KEYRING_CONTROL`, and `XDG_RUNTIME_DIR` from the attaching client so Copilot and other Secret Service clients can see the user keyring inside tmux.
 - Mouse mode is enabled.
 - The prefix key is `Ctrl-A`.
