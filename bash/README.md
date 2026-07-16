@@ -8,6 +8,7 @@
 - `~/.fzf.bash`
 - `~/.fnm/` — managed by the `fnm` stow package
 - `~/.local/bin/keychain`
+- `~/.local/bin/1password-ssh-agent`
 - `~/.local/share/fnm/`
 - `~/.local/bin/gh-browser`
 - `BROWSER` is exported from `~/.bashrc` when `gh-browser` is available
@@ -45,6 +46,7 @@
 - fnm: add `FNM_PATH` to `PATH` when it exists, then `eval "$(fnm env --use-on-cd --shell bash)"`
 - keychain: `eval "$(keychain --quiet --eval nick_muoh.trimble-github.ed25519)"`
 - gh-browser: a small helper that prefers `wslview`, then `xdg-open`, then `explorer.exe`, then `cmd.exe /c start`
+- `1password-ssh-agent`: sources the WSL bridge helper from `local-bin`, exports `SSH_AUTH_SOCK=$HOME/.1password/agent.sock`, and starts `socat` plus `npiperelay.exe` when needed
 - `bat` behavior is documented separately in `bat.md`
 
 ## History-backed setup notes
@@ -58,6 +60,7 @@
 - `curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell --install-dir "$HOME/.fnm"`
 - `curl -fsSL https://raw.githubusercontent.com/danielrobbins/keychain/2b3c181eaa73ca27b0cfa3fd12148d6b69e35311/keychain.sh -o ~/.local/bin/keychain`
 - `curl -fsSL https://raw.githubusercontent.com/danielrobbins/keychain/2b3c181eaa73ca27b0cfa3fd12148d6b69e35311/completions/keychain.bash -o ~/.local/share/bash-completion/completions/keychain`
+- `npiperelay.exe` is installed by `scripts/setup-tools.sh` from the `jstarks/npiperelay` release zip
 - multiple `source ~/.bashrc` runs after edits
 
 ## Caveats

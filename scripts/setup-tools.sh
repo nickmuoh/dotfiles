@@ -94,6 +94,12 @@ KEYCHAIN_VERSION="3.0.0_beta1"
 #           extra: path to the binary inside the tarball
 #                  (e.g. pandoc-3.10/bin/pandoc).
 #
+#   zipbin  Extracts a single binary from a .zip directly into
+#           ~/.local/bin/<cmd> and marks it executable.
+#           Skipped when: ~/.local/bin/<cmd> already exists.
+#           extra: path to the binary inside the zip archive
+#                  (e.g. npiperelay.exe).
+#
 #   direct  Downloads a single file directly to ~/.local/bin/<cmd> and marks it
 #           executable. Use for single-file releases (.pyz, prebuilt scripts, etc).
 #           Skipped when: command -v <cmd> succeeds.
@@ -103,6 +109,7 @@ GITHUB_INSTALLS=(
   "nvim|tarball|https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz|nvim-linux-x86_64"
   "rg|deb|https://github.com/BurntSushi/ripgrep/releases/download/${RG_VERSION}/ripgrep_${RG_VERSION}-1_amd64.deb"
   "pandoc|bin|https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-linux-amd64.tar.gz|pandoc-${PANDOC_VERSION}/bin/pandoc"
+  "npiperelay.exe|zipbin|https://github.com/jstarks/npiperelay/releases/download/v0.1.0/npiperelay_windows_amd64.zip|npiperelay.exe"
   "keychain|direct|https://github.com/danielrobbins/keychain/releases/download/${KEYCHAIN_VERSION}/keychain-${KEYCHAIN_VERSION}.pyz"
 )
 
@@ -187,6 +194,28 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
           status get "$url"
           curl -L -o "$tmp_dir/$file" "$url"
           tar -C "$HOME/.local/bin" --strip-components="$depth" -xzf "$tmp_dir/$file" "$extra"
+          chmod +x "$HOME/.local/bin/$cmd"
+        fi
+      else
+        status skip "$cmd already installed"
+      fi
+      ;;
+
+    zipbin)
+      if should_reinstall_tools || ! command_exists "$cmd"; then
+        sublog "$cmd"
+        if is_dry_run; then
+          status get "$url"
+          status unpack "~/.local/bin/$cmd"
+        else
+          make_temp_dir "setup-tools-${cmd}" tmp_dir
+          status get "$url"
+          curl -L -o "$tmp_dir/$file" "$url"
+          member="$(unzip -Z1 "$tmp_dir/$file" | awk -v wanted="$extra" '$0 == wanted || $0 ~ ("/" wanted "$") { print; exit }')"
+          if [ -z "$member" ]; then
+            die "could not find $extra in $url"
+          fi
+          unzip -p "$tmp_dir/$file" "$member" > "$HOME/.local/bin/$cmd"
           chmod +x "$HOME/.local/bin/$cmd"
         fi
       else

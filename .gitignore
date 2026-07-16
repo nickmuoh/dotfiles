@@ -22,3 +22,8 @@ micro/.config/micro/backups/
 
 # User-specific configuration
 .local/
+
+# Track stowed helper scripts in the local-bin package
+!/local-bin/.local/
+!/local-bin/.local/bin/
+!/local-bin/.local/bin/*

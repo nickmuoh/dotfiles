@@ -29,6 +29,7 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 - [`docs/fd.md`](docs/fd.md)
 - [`docs/fnm.md`](docs/fnm.md)
 - [`docs/uv.md`](docs/uv.md)
+- [`docs/1password-wsl.md`](docs/1password-wsl.md)
 
 ## Layout
 

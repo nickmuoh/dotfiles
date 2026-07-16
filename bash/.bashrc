@@ -179,3 +179,10 @@ fi
 
 # Pi
 export PATH="/home/nmuoh/.local/share/fnm/node-versions/v24.18.0/installation/bin:$PATH"
+
+# Load 1Password SSH agent bridge (stowed helper preferred; legacy fallback kept)
+if [ -f "$HOME/.local/bin/1password-ssh-agent" ]; then
+  source "$HOME/.local/bin/1password-ssh-agent"
+elif [ -f "$HOME/.agent-bridge.sh" ]; then
+  source "$HOME/.agent-bridge.sh"
+fi

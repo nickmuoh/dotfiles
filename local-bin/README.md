@@ -2,6 +2,7 @@
 
 ## Contents
 
+- `~/.local/bin/1password-ssh-agent` (shell helper that forwards WSL SSH agent requests to 1Password on Windows)
 - `~/.local/bin/difft` (wrapper for `difftastic`)
 - `~/.local/bin/gh-browser` (browser opener used by `gh auth login`)
 - `~/.local/bin/mwt` (monorepo worktree helper for detached-head backends with sparse checkout; `sync` refreshes existing worktrees from `wt.yaml`)
@@ -15,3 +16,4 @@
 - `mwt add <project>` is a no-op if the worktree already exists; `mwt sync` reapplies the current sparse paths for any existing worktree before reporting success
 - `sync-agent-skills` depends on `jq` and `npx`; it reads the stowed lockfile and runs `npx skills add <skill> -g -y` for each entry
 - `sync-agent-skills --agent <names...>` also syncs each skill to the named agents; pass `*` to target all supported agents
+- `1password-ssh-agent` depends on `socat` and `npiperelay.exe`; `scripts/setup-tools.sh` installs `npiperelay.exe` and `bash/.bashrc` sources this helper
