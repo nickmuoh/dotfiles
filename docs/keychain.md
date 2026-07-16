@@ -2,6 +2,8 @@
 
 SSH agent manager. Keeps one agent per host instead of spawning a new agent per terminal.
 
+This is separate from the WSL 1Password bridge flow documented in `docs/1password-wsl.md`.
+
 ## Install
 
 Installed as a Python zipapp (`.pyz`) via `setup-tools.sh` `GITHUB_INSTALLS`:

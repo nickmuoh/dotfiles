@@ -116,29 +116,18 @@ if ! shopt -oq posix; then
   fi
 fi
 
+#
+# Environment Variables
+#
 export PATH="$HOME/.local/bin:$PATH"
+export MICRO_TRUECOLOR=1
+export WINHOME="/mnt/c/Users/nmuoh"
+export TMPDIR="/home/nmuoh/tmp"
 
 # Prefer a browser helper that gh can launch directly.
 if command -v gh-browser >/dev/null 2>&1; then
     export BROWSER=gh-browser
 fi
-
-#
-# SSH
-#
-if command -v keychain >/dev/null 2>&1; then
-     # Clear out any dead lock files left over from a wsl --shutdown
-    rm -f "$HOME/.keychain/"*-lockf 2>/dev/null
-    # keychain v3: SSH auth only; --quiet suppresses non-error output (passphrase prompts still use terminal)
-    eval "$(keychain add --quiet --eval "$HOME/.ssh/nick_muoh.trimble-github.ed25519")"
-fi
-
-#
-# Environment Variables
-#
-export MICRO_TRUECOLOR=1
-export WINHOME="/mnt/c/Users/nmuoh"
-export TMPDIR="/home/nmuoh/tmp"
 
 #
 # fnm
@@ -180,9 +169,17 @@ fi
 # Pi
 export PATH="/home/nmuoh/.local/share/fnm/node-versions/v24.18.0/installation/bin:$PATH"
 
-# Load 1Password SSH agent bridge (stowed helper preferred; legacy fallback kept)
-if [ -f "$HOME/.local/bin/1password-ssh-agent" ]; then
-  source "$HOME/.local/bin/1password-ssh-agent"
-elif [ -f "$HOME/.agent-bridge.sh" ]; then
-  source "$HOME/.agent-bridge.sh"
+#
+# SSH
+#
+# if command -v keychain >/dev/null 2>&1; then
+#      # Clear out any dead lock files left over from a wsl --shutdown
+#     rm -f "$HOME/.keychain/"*-lockf 2>/dev/null
+#     # keychain v3: SSH auth only; --quiet suppresses non-error output (passphrase prompts still use terminal)
+#     eval "$(keychain add --quiet --eval "$HOME/.ssh/nick_muoh.trimble-github.ed25519")"
+# fi
+
+# Load 1Password SSH agent bridge.
+if [ -f "$HOME/.1password/agent-bridge.sh" ]; then
+  source "$HOME/.1password/agent-bridge.sh"
 fi

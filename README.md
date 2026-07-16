@@ -5,6 +5,7 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 ## Package docs
 
 - [bash](bash/README.md)
+- [1password](1password/README.md)
 - [tmux](tmux/README.md)
 - [treemux](treemux/README.md)
 - [micro](micro/README.md)
