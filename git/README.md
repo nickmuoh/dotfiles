@@ -65,6 +65,8 @@ To confirm the key Git should use, run `ssh-add.exe -L` in WSL and copy the publ
 
 If `agent.toml` exists at `%LOCALAPPDATA%/1Password/config/ssh/agent.toml`, 1Password uses only the keys matched by that file instead of the default Personal/Private/Employee set.
 
+For WSL Git auth through 1Password, the Windows `OpenSSH Authentication Agent` service must be stopped and disabled. If it is left running, `npiperelay.exe` reaches the Windows `ssh-agent` service instead of the 1Password agent, and WSL will expose whichever keys that service has loaded.
+
 ## Difftastic integration
 
 See `difftastic.md` in the repo root for full docs.

@@ -22,7 +22,9 @@ Installed as a Python zipapp (`.pyz`) via `setup-tools.sh` `GITHUB_INSTALLS`:
 
 ## Current state
 
-Shell startup (`~/.bashrc`) initializes keychain with v3 syntax:
+The tracked `~/.bashrc` currently comments out the `keychain` startup block because SSH auth is expected to come from the 1Password WSL bridge on this machine.
+
+When the block is enabled, shell startup (`~/.bashrc`) initializes keychain with v3 syntax:
 
 ```sh
 eval "$(keychain add --quiet --eval "$HOME/.ssh/nick_muoh.trimble-github.ed25519")"

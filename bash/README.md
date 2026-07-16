@@ -35,9 +35,8 @@
 - `gh` is installed and on `PATH`; `gh-browser` handles auth login browser launches, but there is no `gh` alias or completion hook in the Bash config.
 - `gh auth login` uses `gh-browser` through the `BROWSER` environment variable.
 - `~/.bash_aliases` is sourced from `~/.bashrc` when the file exists.
-- SSH auth for `nick_muoh.trimble-github.ed25519` is initialized separately by `keychain` instead of starting a fresh `ssh-agent` per shell.
-- The 1Password WSL bridge is a separate flow and does not depend on `keychain`.
-- Keychain stays in `~/.bashrc` here on purpose so tmux panes and nested interactive shells inherit the agent setup; if you prefer strict login-shell behavior, put the eval in `~/.bash_profile` and source `~/.bashrc` from there.
+- The tracked `~/.bashrc` currently comments out the `keychain` block; SSH auth is expected to come from the 1Password WSL bridge instead.
+- The 1Password WSL bridge requires the Windows `OpenSSH Authentication Agent` service to be stopped and disabled so 1Password can own `\\.\pipe\openssh-ssh-agent`.
 
 ## Tools initialized from Bash
 
@@ -45,9 +44,8 @@
 - fzf: `[ -f ~/.fzf.bash ] && source ~/.fzf.bash`
 - zoxide: `command -v zoxide >/dev/null 2>&1` then `eval "$(zoxide init bash)"`
 - fnm: add `FNM_PATH` to `PATH` when it exists, then `eval "$(fnm env --use-on-cd --shell bash)"`
-- keychain: `eval "$(keychain add --quiet --eval "$HOME/.ssh/nick_muoh.trimble-github.ed25519")"`
 - gh-browser: a small helper that prefers `wslview`, then `xdg-open`, then `explorer.exe`, then `cmd.exe /c start`
-- `1Password SSH agent bridge`: sources `~/.1password/agent-bridge.sh`, exports `SSH_AUTH_SOCK=$HOME/.1password/agent.sock`, and starts `socat` plus `npiperelay.exe` when needed; this requires 1Password for Windows with Developer > `Use the SSH agent` enabled
+- `1Password SSH agent bridge`: sources `~/.1password/agent-bridge.sh`, exports `SSH_AUTH_SOCK=$HOME/.1password/agent.sock`, and starts `socat` plus `npiperelay.exe` when needed; this requires 1Password for Windows with Developer > `Use the SSH agent` enabled and the Windows `ssh-agent` service disabled
 - `bat` behavior is documented separately in `bat.md`
 
 ## History-backed setup notes
@@ -69,4 +67,4 @@
 - The shell config is a mix of distro defaults and personal additions; most customization lives at the bottom of `~/.bashrc`.
 - There is no separate tracked config for zoxide; when `zoxide` is on `PATH`, its behavior comes from the default `zoxide init bash` output.
 - `gh` currently behaves like a standard installed CLI binary rather than a tool with extra Bash integration.
-- `starship`, `fzf`, `zoxide`, `fnm`, `keychain`, and the 1Password bridge are only initialized for interactive Bash shells.
+- `starship`, `fzf`, `zoxide`, `fnm`, and the 1Password bridge are only initialized for interactive Bash shells.
