@@ -7,8 +7,8 @@
   },
   "model": "us.anthropic.claude-sonnet-4-6[1m]",
   "effortLevel": "medium",
-  "autoCompactEnabled": true,
   "autoCompactWindow": 200000,
   "skipDangerousModePermissionPrompt": true,
-  "theme": "dark"
+  "theme": "dark",
+  "autoCompactEnabled": true
 }
