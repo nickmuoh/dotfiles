@@ -10,7 +10,9 @@
     "npm:pi-prompt-template-model",
     "npm:pi-context-tools",
     "npm:@juicesharp/rpiv-ask-user-question",
-    "npm:pi-double-esc"
+    "npm:pi-double-esc",
+    "npm:pi-mcp-adapter",
+    "npm:pi-quiet-tools"
   ],
   "hideThinkingBlock": true,
   "ollama": {
@@ -18,8 +20,8 @@
     "cloudUrl": "https://ollama.com",
     "apiKey": "ollama"
   },
-  "lastChangelogVersion": "0.80.8",
+  "lastChangelogVersion": "0.80.9",
   "defaultProvider": "github-copilot",
   "defaultModel": "gpt-5.6-terra",
-  "defaultThinkingLevel": "medium"
+  "defaultThinkingLevel": "minimal"
 }
