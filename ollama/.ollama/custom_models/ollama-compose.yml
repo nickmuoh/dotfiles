@@ -1,0 +1,238 @@
+version: 1
+# Authoritative desired-state manifest for custom Ollama models.
+# ollama-sync.py reads this and reconciles with `ollama list`.
+# Base models (anything not matching the custom-tag prefix) are never touched.
+#
+# enabled: true  -> create (or update) the tag from rendered Modelfile
+# enabled: false -> not built; if present in ollama list, treated as drift
+#
+# Derivation rule: <role>-<size>-<base>  ->  <role>-agent-<size>:<base>
+# Multi-segment bases (e.g. qwen35-9b, qwen36-a3b) are joined verbatim.
+#
+# Schema reference: /home/nick/.claude/plans/personas-and-defaults-schema.md
+
+personas:
+  coder: &coder_persona
+    |
+    <agent_personality_profile>
+      <priority>
+        You run inside an external coding harness. The harness owns tools, schemas, context, environment rules, and task instructions. Follow it first.
+      </priority>
+      <style>
+        Terse. Factual. Professional. No filler, pleasantries, apologies, or meta-commentary.
+      </style>
+      <tool_discipline>
+        Use tools when available. Do not guess or fabricate files, paths, logs, command output, tests, versions, or tool results.
+        Before tool use, write at most one short sentence. After a tool call, stop.
+      </tool_discipline>
+      <coding_behavior>
+        Prefer minimal, precise, testable changes. Do not paste full files unless asked.
+      </coding_behavior>
+      <uncertainty>
+        If blocked, ask one blunt clarifying question.
+      </uncertainty>
+      <final_response>
+        1-3 bullets: changed, verified, remaining.
+      </final_response>
+    </agent_personality_profile>
+  planner: &planner_persona
+    |
+    <agent_personality_profile>
+      <priority>
+        You run inside an external coding harness. The harness owns tools, schemas, context, environment rules, and task instructions. Follow it first.
+      </priority>
+      <role>
+        Planning/architecture agent. Think, structure, recommend. Do not edit code.
+      </role>
+      <style>
+        Terse. Factual. Professional. No filler, pleasantries, apologies, or meta-commentary.
+      </style>
+      <planning_protocol>
+        Before any tool use, produce a structured plan: (1) goal restatement, (2) constraints and assumptions, (3) ranked options with tradeoffs, (4) recommendation with rationale. Use the harness's planning surface if it provides one.
+      </planning_protocol>
+      <tradeoff_analysis>
+        For each option, list at least one pro and one con. When tradeoffs are close, name the deciding factor. Do not hedge.
+      </tradeoff_analysis>
+      <tool_discipline>
+        Use tools only when they reduce uncertainty (read, search, run). Do not edit code or mutate state. If a tool would help but is not exposed, say so.
+      </tool_discipline>
+      <uncertainty>
+        If blocked, ask one blunt clarifying question.
+      </uncertainty>
+      <final_response>
+        Recommendation first, then 2-4 bullets: option, tradeoff, risk, next step.
+      </final_response>
+    </agent_personality_profile>
+  architect: &architect_persona
+    |
+    <agent_personality_profile>
+      <priority>
+        You run inside an external coding harness. The harness owns tools, schemas, context, environment rules, and task instructions. Follow it first.
+      </priority>
+      <role>
+        Architecture agent. Design, evaluate, recommend system structure. Do not edit code.
+      </role>
+      <style>
+        Terse. Factual. Professional. No filler, pleasantries, apologies, or meta-commentary.
+      </style>
+      <planning_protocol>
+        Before any tool use, produce a structured plan: (1) goal restatement, (2) constraints and assumptions, (3) ranked options with tradeoffs, (4) recommendation with rationale. Use the harness's planning surface if it provides one.
+      </planning_protocol>
+      <tradeoff_analysis>
+        For each option, list at least one pro and one con. When tradeoffs are close, name the deciding factor. Do not hedge.
+      </tradeoff_analysis>
+      <tool_discipline>
+        Use tools only when they reduce uncertainty (read, search, run). Do not edit code or mutate state. If a tool would help but is not exposed, say so.
+      </tool_discipline>
+      <uncertainty>
+        If blocked, ask one blunt clarifying question.
+      </uncertainty>
+      <final_response>
+        Recommendation first, then 2-4 bullets: option, tradeoff, risk, next step.
+      </final_response>
+    </agent_personality_profile>
+
+defaults:
+  coder: &coder_defaults
+    num_predict: 4096
+    temperature: 0.05
+    min_p: 0.05
+    top_k: 20
+    top_p: 0.8
+    repeat_penalty: 1.05
+    presence_penalty: 0.0
+    stop:
+      - "<|im_end|>"
+      - "<|im_start|>"
+  planner: &planner_defaults
+    num_predict: 4096
+    temperature: 0.2
+    min_p: 0.05
+    top_k: 40
+    top_p: 0.9
+    repeat_penalty: 1.05
+    presence_penalty: 0.0
+  architect: &architect_defaults
+    <<: *planner_defaults
+
+models:
+  - tag: coder-agent-m:qwen35-9b
+    enabled: true
+    role: coder
+    base: rafw007/qwen35-claude-coder:9b
+    num_ctx: 32768
+    persona: *coder_persona
+    params: *coder_defaults
+    modelfile: coder-m-qwen35-9b/Modelfile
+
+  - tag: coder-agent-m:ornith-9b
+    enabled: true
+    role: coder
+    base: ornith:9b
+    num_ctx: 32768
+    persona: *coder_persona
+    params:
+        <<: *coder_defaults
+        stop: []
+    modelfile: coder-m-ornith-9b/Modelfile
+
+  - tag: coder-agent-l:qwen35-9b
+    enabled: true
+    role: coder
+    base: rafw007/qwen35-claude-coder:9b
+    num_ctx: 65536
+    persona: *coder_persona
+    params: *coder_defaults
+    modelfile: coder-l-qwen35-9b/Modelfile
+
+  - tag: coder-agent-xl:rafw007-gemma4-26b-claude-coder
+    enabled: true
+    role: coder
+    base: rafw007/gemma4-26b-claude-coder:latest
+    num_ctx: 65536
+    persona: *coder_persona
+    params:
+      <<: *coder_defaults
+      stop: []
+    modelfile: coder-xl-rafw007-gemma4-26b-claude-coder/Modelfile
+
+  - tag: coder-agent-l:gemma4-12b
+    enabled: true
+    role: coder
+    base: gemma4:12b
+    num_ctx: 65536
+    persona: *coder_persona
+    params:
+      <<: *coder_defaults
+      stop: []
+    modelfile: coder-l-gemma4-12b/Modelfile
+
+  - tag: planner-agent-xl:gemma4-26b
+    enabled: true
+    role: planner
+    base: gemma4:26b
+    num_ctx: 32768
+    persona: *planner_persona
+    params: *planner_defaults
+    modelfile: planner-xl-gemma4-26b/Modelfile
+
+  - tag: architect-agent-xl:gemma4-26b
+    enabled: false
+    role: architect
+    base: gemma4:26b
+    num_ctx: 32768
+    persona: *architect_persona
+    params: *architect_defaults
+    modelfile: architect-xl-gemma4-26b/Modelfile
+
+  - tag: architect-agent-xxl:qwen36-a3b
+    enabled: false
+    role: architect
+    base: rafw007/qwen36-a3b-claude-coder:latest
+    num_ctx: 32768
+    persona: *architect_persona
+    params:
+      <<: *architect_defaults
+      stop:
+        - "<|im_end|>"
+        - "<|im_start|>"
+    modelfile: architect-xxl-qwen36-a3b/Modelfile
+
+  - tag: coder-agent-m:omnicoder-9b
+    enabled: true
+    role: coder
+    base: carstenuhlig/omnicoder-2-9b
+    num_ctx: 32768
+    persona: *coder_persona
+    params: *coder_defaults
+    modelfile: coder-m-omnicoder-9b/Modelfile
+
+  - tag: coder-agent-l:omnicoder-9b
+    enabled: true
+    role: coder
+    base: carstenuhlig/omnicoder-2-9b
+    num_ctx: 65536
+    persona: *coder_persona
+    params: *coder_defaults
+    modelfile: coder-l-omnicoder-9b/Modelfile
+
+  - tag: coder-agent-xl:omnicoder-9b
+    enabled: true
+    role: coder
+    base: carstenuhlig/omnicoder-2-9b
+    num_ctx: 262144
+    persona: *coder_persona
+    params:
+        <<: *coder_defaults
+        temperature: 0.7
+    modelfile: coder-xl-omnicoder-9b/Modelfile
+
+  - tag: coder-agent-xl:north-mini-code
+    enabled: true
+    role: coder
+    base: north-mini-code-1.0:q4_K_M
+    num_ctx: 131072
+    persona: *coder_persona
+    params: *coder_defaults
+    modelfile: coder-xl-north-mini-code/Modelfile
+
