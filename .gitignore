@@ -9,6 +9,7 @@
 # Agent workspace
 /.local/
 /.cortex/
+/.pi/
 agents/.agents/skills/
 
 # Editor cruft

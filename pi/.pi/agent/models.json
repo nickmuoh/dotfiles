@@ -10,7 +10,7 @@
         "thinkingFormat": "openai"
       },
       "models": [
-       
+        {"id": "gemma4:31b-cloud"}
       ]
     }
   }

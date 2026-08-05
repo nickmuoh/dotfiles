@@ -30,6 +30,25 @@
         "cacheWrite": 0
       }
     },
+    "coder-agent-m:omnicoder-9b": {
+      "name": "Medium Coder Agent (Omnicoder-9b)",
+      "contextWindow": 32768,
+      "reasoning": true,
+      "thinkingLevelMap": {
+        "off": "none",
+        "minimal": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": null
+      },
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      }
+    },
     "coder-agent-l:qwen35-9b": {
       "name": "Large Coder Agent (Qwen3.5-9b)",
       "contextWindow": 65536,
@@ -37,9 +56,28 @@
       "thinkingLevelMap": {
         "off": "none",
         "minimal": null,
-        "low": null,
-        "medium": null,
-        "high": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": null
+      },
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      }
+    },
+    "coder-agent-l:omnicoder-9b": {
+      "name": "Large Coder Agent (Omnicoder-9b)",
+      "contextWindow": 65536,
+      "reasoning": true,
+      "thinkingLevelMap": {
+        "off": "none",
+        "minimal": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
         "xhigh": null
       },
       "cost": {
@@ -67,6 +105,26 @@
         "cacheRead": 0,
         "cacheWrite": 0
       }
+    },
+    "planner-agent-xl:gemma4-26b": {
+      "name": "Large Planner Agent (Gemma4-26b)",
+      "contextWindow": 262144,
+      "reasoning": true,
+      "thinkingLevelMap": {
+        "off": "none",
+        "minimal": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": null
+      },
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      }
     }
-  }
+  },
+  "filter": "^(planner|architect|coder)-agent.*$"
 }

@@ -12,16 +12,20 @@
     "npm:@juicesharp/rpiv-ask-user-question",
     "npm:pi-double-esc",
     "npm:pi-mcp-adapter",
-    "npm:pi-quiet-tools"
+    "npm:pi-quiet-tools",
+    "../../.dotfiles/pi/pi-model-filter",
+    "npm:@pi-kaush/pi-welcome-screen@latest",
+    "npm:pi-env",
+    "npm:@m4riok/pi-ide-bridge"
   ],
-  "hideThinkingBlock": true,
+  "hideThinkingBlock": false,
   "ollama": {
     "baseUrl": "http://172.17.48.1:11435",
     "cloudUrl": "https://ollama.com",
     "apiKey": "ollama"
   },
-  "lastChangelogVersion": "0.80.9",
-  "defaultProvider": "github-copilot",
-  "defaultModel": "gpt-5.6-terra",
-  "defaultThinkingLevel": "minimal"
+  "lastChangelogVersion": "0.83.0",
+  "defaultProvider": "ollama",
+  "defaultModel": "planner-agent-xl:gemma4-26b",
+  "defaultThinkingLevel": "medium"
 }
