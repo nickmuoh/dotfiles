@@ -56,7 +56,7 @@ apt_package_installed() {
 # Add or remove package names here. apt handles install and future upgrades.
 APT_PACKAGES=(
   bash-completion curl git fd-find fzf bat jq yq tmux starship gh stow
-  lazygit universal-ctags unzip socat libpq-dev libsqlite3-dev python3-dev gcc
+  universal-ctags unzip socat libpq-dev libsqlite3-dev python3-dev gcc
   gnome-keyring libsecret-1-0 xdg-utils
 )
 
@@ -105,12 +105,17 @@ KEYCHAIN_VERSION="3.0.0_beta1"
 #           Skipped when: command -v <cmd> succeeds.
 #           extra: not used.
 #
+#   latest-bin Downloads the latest GitHub release asset for a platform-specific
+#              binary and extracts it to ~/.local/bin/<cmd>.
+#              extra: asset name prefix (the architecture suffix is appended).
+#
 GITHUB_INSTALLS=(
   "nvim|tarball|https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz|nvim-linux-x86_64"
   "rg|deb|https://github.com/BurntSushi/ripgrep/releases/download/${RG_VERSION}/ripgrep_${RG_VERSION}-1_amd64.deb"
   "pandoc|bin|https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-linux-amd64.tar.gz|pandoc-${PANDOC_VERSION}/bin/pandoc"
   "npiperelay.exe|zipbin|https://github.com/jstarks/npiperelay/releases/download/v0.1.0/npiperelay_windows_amd64.zip|npiperelay.exe"
   "keychain|direct|https://github.com/danielrobbins/keychain/releases/download/${KEYCHAIN_VERSION}/keychain-${KEYCHAIN_VERSION}.pyz"
+  "lazygit|latest-bin|https://api.github.com/repos/jesseduffield/lazygit/releases/latest|lazygit"
 )
 
 ## [install]
@@ -216,6 +221,32 @@ for entry in "${GITHUB_INSTALLS[@]}"; do
             die "could not find $extra in $url"
           fi
           unzip -p "$tmp_dir/$file" "$member" > "$HOME/.local/bin/$cmd"
+          chmod +x "$HOME/.local/bin/$cmd"
+        fi
+      else
+        status skip "$cmd already installed"
+      fi
+      ;;
+
+    latest-bin)
+      if should_reinstall_tools || ! command_exists "$cmd"; then
+        sublog "$cmd"
+        if is_dry_run; then
+          status get "$url"
+          status unpack "~/.local/bin/$cmd"
+        else
+          case "$(uname -m)" in
+            x86_64) lazygit_arch=x86_64 ;;
+            aarch64) lazygit_arch=arm64 ;;
+            *) die "unsupported architecture for lazygit: $(uname -m)" ;;
+          esac
+          make_temp_dir "setup-tools-${cmd}" tmp_dir
+          status get "$url"
+          lazygit_version="$(curl -fsSL "$url" | grep -Po '"tag_name": *"v\K[^"]*')"
+          require_nonempty_arg "lazygit version" "$lazygit_version"
+          lazygit_url="https://github.com/jesseduffield/lazygit/releases/download/v${lazygit_version}/${extra}_${lazygit_version}_Linux_${lazygit_arch}.tar.gz"
+          curl -fsSL -o "$tmp_dir/${cmd}.tar.gz" "$lazygit_url"
+          tar -C "$HOME/.local/bin" -xzf "$tmp_dir/${cmd}.tar.gz" "$cmd"
           chmod +x "$HOME/.local/bin/$cmd"
         fi
       else
