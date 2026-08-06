@@ -56,7 +56,7 @@ apt_package_installed() {
 # Add or remove package names here. apt handles install and future upgrades.
 APT_PACKAGES=(
   bash-completion curl git fd-find fzf bat jq yq tmux starship gh stow
-  universal-ctags unzip socat libpq-dev libsqlite3-dev python3-dev gcc
+  universal-ctags unzip socat psmisc libpq-dev libsqlite3-dev python3-dev gcc
   gnome-keyring libsecret-1-0 xdg-utils
 )
 

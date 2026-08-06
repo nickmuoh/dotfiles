@@ -10,6 +10,7 @@
 - `~/.tmux/plugins/tmux-autoreload`
 - `~/.tmux/plugins/tmux-prefix-highlight`
 - `~/.tmux/plugins/tmux-mighty-scroll`
+- `~/.tmux/plugins/tmux-fzf`
 - `~/.tmux/plugins/tmux-cpu-mem-monitor`
 - `treemux/.tmux/plugins/treemux/configs/treemux_init.lua`
 
@@ -22,6 +23,7 @@
 - `b0o/tmux-autoreload`
 - `tmux-plugins/tmux-prefix-highlight`
 - `noscript/tmux-mighty-scroll`
+- `sainnhe/tmux-fzf` - <https://github.com/sainnhe/tmux-fzf>
 - `tmux-cpu-mem-monitor` (vendored fork, stowed from this repo)
 
 ## Current state
@@ -39,10 +41,20 @@
 - The right side of the status line uses `#{prefix_highlight}` for prefix state (`^A`) and shows CPU and memory usage with plugin icons (`` CPU, `` MEM), with date/time/host removed.
 - `tmux-menus` is installed through TPM and opens popup menus with `<prefix> \` by default.
 - Treemux is the tmux-side plugin layer that connects tmux with a Neovim tree client; in this setup it is configured to use `nvim-tree` and a Python interpreter at `/home/nmuoh/.local/share/treemux-venv/bin/python` created by `uv`.
+- `tmux-fzf` provides an interactive FZF interface for managing sessions, windows, panes, commands, key bindings, and processes. It uses `<prefix> Ctrl-F` with the configured `Ctrl-A` prefix so it does not conflict with tmux's lowercase `<prefix> f` find-window binding.
 - `tmux-cpu-mem-monitor` is vendored in `tmux-cpu-mem-monitor/` and stowed to `~/.tmux/plugins/tmux-cpu-mem-monitor`.
 - Its `tmux_cpu_mem_monitor.tmux` wrapper is the source of truth for the CPU/MEM right status segment: it builds `status-right` and rewrites the `cpu`, `mem`, `disk`, and `battery` placeholders to `uv run --project ... src/*.py` commands.
 - The tmux config keeps theme knobs for that segment (`@cpu_mem_*` and `@prefix_highlight_*`), invokes the vendored wrapper after TPM, then invokes `tmux-prefix-highlight` separately as the final rewrite step.
 - TPM is initialized before the wrapper so Nord can finish its setup first, then the CPU/MEM wrapper restores the custom status line, and `tmux-prefix-highlight` patches the final string.
+
+## tmux-fzf shortcuts
+
+- `prefix + Ctrl-F` — open the tmux-fzf selector.
+- `Tab` / `Shift-Tab` — mark or unmark multiple items where supported.
+
+`tmux-fzf` requires GNU Bash, `sed`, and the `fzf` command. The optional `pstree`
+feature is provided by the `psmisc` package in the tool bootstrap; clipboard
+integration remains available through tmux buffers unless CopyQ is installed.
 
 ## Treemux shortcuts
 
@@ -99,5 +111,6 @@ No explicit TPM install command was found in `~/.bash_history`, but the plugin d
 
 - Older tmux panes that were opened before the `tmux-256color` change may still carry the old `TERM` value. New panes/sessions inherit the corrected terminal setting.
 - `tmux-menus` requires tmux 3.0+ for native popup menus; this system is on tmux 3.6, so no fallback packages are needed.
+- `tmux-fzf` uses native tmux popups on tmux 3.2+; this system is on tmux 3.6.
 - Treemux depends on `nvim-tree` integration and the configured Python environment path remaining valid.
 - `tmux-mighty-scroll` is configured for pass-through fallback mode, so behavior depends on the terminal and application running in the pane.
