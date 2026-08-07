@@ -18,14 +18,14 @@
     "npm:pi-env",
     "npm:@m4riok/pi-ide-bridge"
   ],
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "ollama": {
     "baseUrl": "http://172.17.48.1:11435",
     "cloudUrl": "https://ollama.com",
     "apiKey": "ollama"
   },
-  "lastChangelogVersion": "0.83.0",
-  "defaultProvider": "ollama",
-  "defaultModel": "planner-agent-xl:gemma4-26b",
+  "lastChangelogVersion": "0.84.0",
+  "defaultProvider": "github-copilot",
+  "defaultModel": "gpt-5.6-luna",
   "defaultThinkingLevel": "medium"
 }
