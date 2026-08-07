@@ -94,7 +94,7 @@ personas:
 
 defaults:
   coder: &coder_defaults
-    num_predict: 4096
+    num_predict: 8192
     temperature: 0.05
     min_p: 0.05
     top_k: 20
@@ -105,7 +105,7 @@ defaults:
       - "<|im_end|>"
       - "<|im_start|>"
   planner: &planner_defaults
-    num_predict: 4096
+    num_predict: 32768
     temperature: 0.2
     min_p: 0.05
     top_k: 40
@@ -117,7 +117,7 @@ defaults:
 
 models:
   - tag: coder-agent-m:qwen35-9b
-    enabled: true
+    enabled: false
     role: coder
     base: rafw007/qwen35-claude-coder:9b
     num_ctx: 32768
@@ -126,7 +126,7 @@ models:
     modelfile: coder-m-qwen35-9b/Modelfile
 
   - tag: coder-agent-m:ornith-9b
-    enabled: true
+    enabled: false
     role: coder
     base: ornith:9b
     num_ctx: 32768
@@ -137,7 +137,7 @@ models:
     modelfile: coder-m-ornith-9b/Modelfile
 
   - tag: coder-agent-l:qwen35-9b
-    enabled: true
+    enabled: false
     role: coder
     base: rafw007/qwen35-claude-coder:9b
     num_ctx: 65536
@@ -145,8 +145,8 @@ models:
     params: *coder_defaults
     modelfile: coder-l-qwen35-9b/Modelfile
 
-  - tag: coder-agent-xl:rafw007-gemma4-26b-claude-coder
-    enabled: true
+  - tag: coder-agent-l:rafw007-gemma4-26b-claude-coder
+    enabled: false
     role: coder
     base: rafw007/gemma4-26b-claude-coder:latest
     num_ctx: 65536
@@ -157,7 +157,7 @@ models:
     modelfile: coder-xl-rafw007-gemma4-26b-claude-coder/Modelfile
 
   - tag: coder-agent-l:gemma4-12b
-    enabled: true
+    enabled: false
     role: coder
     base: gemma4:12b
     num_ctx: 65536
@@ -167,29 +167,38 @@ models:
       stop: []
     modelfile: coder-l-gemma4-12b/Modelfile
 
-  - tag: planner-agent-xl:gemma4-26b
-    enabled: true
+  - tag: planner-agent-l:gemma4-26b
+    enabled: false
     role: planner
     base: gemma4:26b
-    num_ctx: 32768
+    num_ctx: 65536
     persona: *planner_persona
     params: *planner_defaults
     modelfile: planner-xl-gemma4-26b/Modelfile
 
-  - tag: architect-agent-xl:gemma4-26b
+  - tag: planner-agent-xl:gemma4-26b
+    enabled: false
+    role: planner
+    base: gemma4:26b
+    num_ctx: 131072
+    persona: *planner_persona
+    params: *planner_defaults
+    modelfile: planner-xl-gemma4-26b/Modelfile
+
+  - tag: architect-agent-l:gemma4-26b
     enabled: false
     role: architect
     base: gemma4:26b
-    num_ctx: 32768
+    num_ctx: 65536
     persona: *architect_persona
     params: *architect_defaults
     modelfile: architect-xl-gemma4-26b/Modelfile
 
-  - tag: architect-agent-xxl:qwen36-a3b
+  - tag: architect-agent-l:qwen36-a3b
     enabled: false
     role: architect
     base: rafw007/qwen36-a3b-claude-coder:latest
-    num_ctx: 32768
+    num_ctx: 65536
     persona: *architect_persona
     params:
       <<: *architect_defaults
@@ -199,7 +208,7 @@ models:
     modelfile: architect-xxl-qwen36-a3b/Modelfile
 
   - tag: coder-agent-m:omnicoder-9b
-    enabled: true
+    enabled: false
     role: coder
     base: carstenuhlig/omnicoder-2-9b
     num_ctx: 32768
@@ -208,7 +217,7 @@ models:
     modelfile: coder-m-omnicoder-9b/Modelfile
 
   - tag: coder-agent-l:omnicoder-9b
-    enabled: true
+    enabled: false
     role: coder
     base: carstenuhlig/omnicoder-2-9b
     num_ctx: 65536
@@ -216,8 +225,8 @@ models:
     params: *coder_defaults
     modelfile: coder-l-omnicoder-9b/Modelfile
 
-  - tag: coder-agent-xl:omnicoder-9b
-    enabled: true
+  - tag: coder-agent-xxl:omnicoder-9b
+    enabled: false
     role: coder
     base: carstenuhlig/omnicoder-2-9b
     num_ctx: 262144
@@ -228,11 +237,10 @@ models:
     modelfile: coder-xl-omnicoder-9b/Modelfile
 
   - tag: coder-agent-xl:north-mini-code
-    enabled: true
+    enabled: false
     role: coder
     base: north-mini-code-1.0:q4_K_M
     num_ctx: 131072
     persona: *coder_persona
     params: *coder_defaults
     modelfile: coder-xl-north-mini-code/Modelfile
-
