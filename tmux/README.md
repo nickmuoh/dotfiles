@@ -33,7 +33,7 @@
 - `extended-keys` is enabled so tmux forwards modern modified key sequences.
 - `extended-keys-format` is set to `csi-u` for modern key encoding compatibility.
 - `update-environment` copies `DBUS_SESSION_BUS_ADDRESS`, `GNOME_KEYRING_CONTROL`, and `XDG_RUNTIME_DIR` from the attaching client so Copilot and other Secret Service clients can see the user keyring inside tmux.
-- Mouse mode is enabled.
+- Mouse mode is enabled for scrolling and pane selection; mouse-drag selections are not copied on release.
 - The prefix key is `Ctrl-A`.
 - Window and pane numbering both start at `1`.
 - Windows are renumbered automatically.
@@ -46,6 +46,15 @@
 - Its `tmux_cpu_mem_monitor.tmux` wrapper is the source of truth for the CPU/MEM right status segment: it builds `status-right` and rewrites the `cpu`, `mem`, `disk`, and `battery` placeholders to `uv run --project ... src/*.py` commands.
 - The tmux config keeps theme knobs for that segment (`@cpu_mem_*` and `@prefix_highlight_*`), invokes the vendored wrapper after TPM, then invokes `tmux-prefix-highlight` separately as the final rewrite step.
 - TPM is initialized before the wrapper so Nord can finish its setup first, then the CPU/MEM wrapper restores the custom status line, and `tmux-prefix-highlight` patches the final string.
+
+## Copy mode
+
+- `Ctrl-A [` — enter tmux copy mode.
+- Copy mode uses Vim-style keys.
+- `Space` — start a selection.
+- `y` — copy the selection and exit copy mode.
+- `q` — exit copy mode without copying.
+- Mouse dragging selects text without copying it automatically.
 
 ## tmux-fzf shortcuts
 
