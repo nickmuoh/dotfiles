@@ -41,7 +41,7 @@
 - The right side of the status line uses `#{prefix_highlight}` for prefix state (`^A`) and shows CPU and memory usage with plugin icons (`` CPU, `` MEM), with date/time/host removed.
 - `tmux-menus` is installed through TPM and opens popup menus with `<prefix> \` by default.
 - Treemux is the tmux-side plugin layer that connects tmux with a Neovim tree client; in this setup it is configured to use `nvim-tree` and a Python interpreter at `/home/nmuoh/.local/share/treemux-venv/bin/python` created by `uv`.
-- `tmux-fzf` provides an interactive FZF interface for managing sessions, windows, panes, commands, key bindings, and processes. It uses `<prefix> Ctrl-F` with the configured `Ctrl-A` prefix so it does not conflict with tmux's lowercase `<prefix> f` find-window binding.
+- `tmux-fzf` provides an interactive FZF interface for managing sessions, windows, panes, commands, key bindings, and processes. It replaces tmux's native lowercase `<prefix> f` find-window binding so window finding uses the tmux-fzf selector.
 - `tmux-cpu-mem-monitor` is vendored in `tmux-cpu-mem-monitor/` and stowed to `~/.tmux/plugins/tmux-cpu-mem-monitor`.
 - Its `tmux_cpu_mem_monitor.tmux` wrapper is the source of truth for the CPU/MEM right status segment: it builds `status-right` and rewrites the `cpu`, `mem`, `disk`, and `battery` placeholders to `uv run --project ... src/*.py` commands.
 - The tmux config keeps theme knobs for that segment (`@cpu_mem_*` and `@prefix_highlight_*`), invokes the vendored wrapper after TPM, then invokes `tmux-prefix-highlight` separately as the final rewrite step.
@@ -56,9 +56,25 @@
 - `q` — exit copy mode without copying.
 - Mouse dragging selects text without copying it automatically.
 
+## Layout shortcuts
+
+Press `Ctrl-W` directly or `prefix + Ctrl-W` to enter the layout key table, then use:
+
+- `h` / `j` / `k` / `l` — move focus to the left / down / up / right pane.
+- `H` / `J` / `K` / `L` — swap the current pane with the left / down / up / right pane.
+- `z` — toggle zoom for the current pane; this temporarily hides the others.
+- `|` — split vertically.
+- `-` — split horizontally.
+- `x` — close the current pane.
+- `1` / `2` / `3` / `4` — apply common layouts.
+
+The swap bindings target the current pane explicitly. Using tmux's `!` target
+would address the last active pane instead, which makes directional swaps appear
+to move the wrong pane or do nothing.
+
 ## tmux-fzf shortcuts
 
-- `prefix + Ctrl-F` — open the tmux-fzf selector.
+- `prefix + f` — open the tmux-fzf selector, including interactive window finding.
 - `Tab` / `Shift-Tab` — mark or unmark multiple items where supported.
 
 `tmux-fzf` requires GNU Bash, `sed`, and the `fzf` command. The optional `pstree`
