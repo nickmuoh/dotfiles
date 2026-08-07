@@ -5,7 +5,7 @@
     "CLAUDE_CODE_USE_BEDROCK": "1",
     "AWS_REGION": "us-west-2"
   },
-  "model": "us.anthropic.claude-sonnet-4-6",
+  "model": "us.anthropic.claude-opus-4-8",
   "disableClaudeAiConnectors": true,
   "disableBundledSkills": true,
   "disableRemoteControl": true,
