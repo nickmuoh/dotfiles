@@ -29,4 +29,8 @@ micro/.config/micro/backups/
 !/local-bin/.local/bin/
 !/local-bin/.local/bin/*
 
+# Pi
 auth.json
+
+# Nodejs
+**/node_modules/
