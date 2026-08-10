@@ -30,6 +30,8 @@ return {
         { ":Format", description = "Format current buffer" },
         { ":Lazy", description = "Open Lazy plugin manager" },
         { ":Mason", description = "Open Mason LSP installer" },
+        { ":RenderMarkdown buf_enable", description = "Render the current Markdown buffer" },
+        { ":RenderMarkdown buf_disable", description = "Use the raw current Markdown buffer" },
       },
       keymaps = {
         {
