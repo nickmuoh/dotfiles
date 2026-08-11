@@ -2,6 +2,10 @@
 # see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
 # for examples
 
+# Use an installed UTF-8 locale for every interactive Bash shell.
+export LANG=C.UTF-8
+unset LC_ALL
+
 # If not running interactively, don't do anything
 case $- in
 *i*) ;;

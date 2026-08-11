@@ -26,6 +26,7 @@
 
 - Git core.editor is set to `nvim` (global git config). To ensure other tools use Neovim, consider exporting `EDITOR` and `VISUAL` in your shell rc: `export EDITOR=nvim` and `export VISUAL=nvim`.
 
+- `~/.bashrc` sets `LANG=C.UTF-8` and unsets `LC_ALL`, using the installed UTF-8 locale for new interactive Bash shells.
 - `~/.bashrc` is still mostly the default Debian/Ubuntu shell startup file.
 - Bash completion is enabled when the system completion files exist.
 - `MICRO_TRUECOLOR=1` is exported, which helps micro render truecolor themes.
