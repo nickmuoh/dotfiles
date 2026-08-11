@@ -18,6 +18,7 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 - [lazygit](lazygit/README.md)
 - [copilot](copilot/README.md)
 - [claude](claude/README.md)
+- [pi](pi/README.md)
 - [snowflake](snowflake/README.md)
 - [agents](agents/README.md)
 - [fnm](fnm/README.md)
@@ -31,6 +32,7 @@ This repo tracks the shell/editor setup under `/home/nmuoh/.dotfiles` and is org
 - [`docs/fnm.md`](docs/fnm.md)
 - [`docs/uv.md`](docs/uv.md)
 - [`docs/1password-wsl.md`](docs/1password-wsl.md)
+- [`docs/tmux-agent-indicator.md`](docs/tmux-agent-indicator.md)
 
 ## Layout
 

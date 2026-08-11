@@ -1,0 +1,42 @@
+{
+  "name": "pi-tmux-agent-indicator",
+  "version": "0.1.0",
+  "description": "Pi extension that drives tmux-agent-indicator state transitions for Pi lifecycle events.",
+  "author": "nmuoh",
+  "license": "Unlicense",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "tmux",
+    "tmux-agent-indicator"
+  ],
+  "type": "module",
+  "main": "./dist/extension.js",
+  "exports": {
+    ".": "./dist/extension.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=0.74.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+  },
+  "pi": {
+    "extensions": [
+      "./dist/extension.js"
+    ]
+  }
+}

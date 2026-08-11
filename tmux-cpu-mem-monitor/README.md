@@ -26,9 +26,9 @@ Or run the repo bootstrap, which also syncs the plugin dependencies:
 ## Current behavior
 
 - `tmux_cpu_mem_monitor.tmux` is the source of truth for the custom tmux CPU/MEM right status segment.
-- The wrapper builds `status-right` with a `#{prefix_highlight}` placeholder, Nord-style separators, and the CPU/MEM icons.
+- The wrapper builds `status-right` with a `#{prefix_highlight}` placeholder, Nord-style separators, the CPU/MEM icons, and the optional `#{agent_session_dots}` / `#{agent_indicator}` placeholders.
 - It rewrites `#{cpu}`, `#{mem}`, `#{disk}`, and `#{battery}` placeholders in `status-right`, `status-left`, and `status-format[0|1]` to `uv run --project ... src/*.py` commands.
-- `tmux-prefix-highlight` is expected to run separately afterwards so the final status line keeps the custom `^A` prefix segment.
+- `tmux-prefix-highlight` is expected to run separately afterwards so the final status line keeps the custom `^A` prefix segment; `tmux-agent-indicator` runs after that to interpolate its placeholders.
 
 ## tmux options used by the wrapper
 

@@ -120,6 +120,16 @@ Related paths:
 7. Keep the tmux config DRY by storing only theme knobs in user options, letting the vendored wrapper assemble `status-right`, and running `tmux-prefix-highlight` separately as the last rewrite.
 8. Reload tmux safely with `tmux source-file ~/.tmux.conf` (do not kill tmux server from inside a running tmux session).
 
+## tmux-agent-indicator
+
+- Installed via TPM (`accessd/tmux-agent-indicator`).
+- `agent-indicator.tmux` is run explicitly via `run-shell` after the `tmux-prefix-highlight` step so it can replace its placeholders in the final `status-right` string.
+- `#{agent_session_dots} #{agent_indicator}` is appended to the `status-right` string produced by `tmux_cpu_mem_monitor.tmux`'s `set_status_right`, preceded by `#[default]` to separate it from the CPU/MEM block.
+- Session dots show every tmux session without opening a popup: `!` yellow for `needs-input`, `◉` bright cyan for `running`, `✓` green for `done`, `●` for the current idle session, and `○` for an inactive idle session. The highest session state wins in the order `needs-input`, `running`, then `done`. Dots are spaced, restore the CPU/MEM Nord style after each colored symbol, and the adjacent agent icon has left/right padding.
+- Notifications (`tmux display-message`) are enabled for `needs-input` and `done` states. The Stow-managed Claude settings register `UserPromptSubmit`, `PermissionRequest`, and `Stop` hooks; new Claude processes must load/trust those hooks before they emit state.
+- Pane background coloring is not enabled; all `*-bg` values remain at their default.
+- Process-fallback detection covers `pi,claude,codex,aider,cursor,opencode,cortex,coco,copilot`. The tracked `pi/patches/tmux-agent-indicator-session-dots.patch` makes these cross-session states visible and is applied by `scripts/setup-tmux.sh`.
+
 ## History-backed setup notes
 
 - `tmux`

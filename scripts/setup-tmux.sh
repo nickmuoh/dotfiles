@@ -9,12 +9,33 @@ enable_error_trap
 log "tmux plugins"
 if ! is_dry_run; then
   need_cmd git
+  need_cmd patch
 fi
+
+repo_root="$(bootstrap_root)"
+indicator_dir="$HOME/.tmux/plugins/tmux-agent-indicator"
+indicator_patch="$repo_root/pi/patches/tmux-agent-indicator-session-dots.patch"
 
 clone_if_missing "$HOME/.tmux/plugins/tpm" --depth 1 https://github.com/tmux-plugins/tpm
 
 if [ -x "$HOME/.tmux/plugins/tpm/bin/install_plugins" ]; then
   run "$HOME/.tmux/plugins/tpm/bin/install_plugins"
+fi
+
+# The upstream dots mark only current/inactive/attention sessions. Extend them
+# with running and done states so worker state stays visible cross-session.
+if [ -f "$indicator_patch" ] && [ -d "$indicator_dir" ]; then
+  if grep -q '^RUNNING_SYMBOL=' "$indicator_dir/scripts/session-dots.sh" 2>/dev/null \
+    && grep -q '^RESET_STYLE=' "$indicator_dir/scripts/session-dots.sh" 2>/dev/null \
+    && grep -q '^DOT_SEPARATOR=' "$indicator_dir/scripts/session-dots.sh" 2>/dev/null \
+    && grep -q 'Associative arrays reject an empty subscript' "$indicator_dir/scripts/session-dots.sh" 2>/dev/null \
+    && grep -q 'Needs-input is acknowledged only when focus returns' "$indicator_dir/scripts/pane-focus-in.sh" 2>/dev/null; then
+    status skip "tmux-agent-indicator session-dot patch already applied"
+  elif is_dry_run; then
+    status plan "patch -d $(printf '%q' "$indicator_dir") -p1 < $(printf '%q' "$indicator_patch")"
+  else
+    run_sh "patch -d $(printf '%q' "$indicator_dir") -p1 < $(printf '%q' "$indicator_patch")"
+  fi
 fi
 
 if [ -d "$HOME/.tmux/plugins/tmux-cpu-mem-monitor" ]; then
