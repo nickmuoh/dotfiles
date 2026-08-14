@@ -8,13 +8,44 @@ Treemux runs a separate Neovim sidebar process, independent of the main LazyVim 
 
 ## Keybindings
 
+`prefix` is `Ctrl-a` in this tmux configuration. The sidebar is a Neovim
+window: use these tree keys only after focusing it.
+
+### Sidebar controls
+
 | Key | Action |
 | --- | --- |
-| `prefix + Tab` | Toggle sidebar |
-| `prefix + Backspace` | Toggle and focus sidebar |
-| `R` | Refresh tree |
-| `o` | Open in main pane |
-| `v` / `Ctrl-v` | Open in vertical split |
-| `Ctrl-x` | Open in horizontal split |
+| `prefix + Tab` | Toggle the sidebar. |
+| `prefix + Backspace` | Toggle the sidebar and focus it. |
 
-Additional tree interactions use `Enter`, `l`, `Ctrl-t`, `h`, `u`, `F1`, and `Space o`.
+### nvim-tree navigation and opening
+
+Treemux first installs `nvim-tree`'s default buffer-local mappings, then
+replaces the following bindings to send the selected path to the main editor
+or a tmux split.
+
+| Key | Action |
+| --- | --- |
+| `R` | Refresh the tree. |
+| `u` | Change the tree root to the selected directory. |
+| `h` | Close the current directory node. |
+| `Enter`, `l`, `Ctrl-t`, or double-click | Open the selected path in Treemux. |
+| `o` | Open the selected path in the main pane without creating a tmux split. |
+| `v` or `Ctrl-v` | Open the selected path in a vertical tmux split. |
+| `Ctrl-x` | Open the selected path in a horizontal tmux split. |
+| `F1` | Show information about the selected node. |
+
+The remaining default `nvim-tree` mappings are available in the sidebar and
+depend on the installed plugin version; use its in-editor help for the live
+keymap.
+
+### File-explorer switching
+
+| Key | Action |
+| --- | --- |
+| `Space o` | Toggle between `nvim-tree` and Oil while preserving the selected file or directory. |
+| `Space nn` | Toggle Neo-tree. |
+
+In the Neo-tree window, `Space o` opens the selected location in Oil. Neo-tree
+also routes its normal file-open requests through Treemux, so files still open
+in the main editor instead of the sidebar process.
