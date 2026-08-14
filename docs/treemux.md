@@ -43,7 +43,7 @@ following `nvim-tree` defaults remain available in the sidebar:
 | Task | Key | Notes |
 | --- | --- | --- |
 | Open or expand the selection | `Enter` or `l` | A selected file opens in the main Treemux editor; a directory opens locally in the tree. |
-| Close a directory | `h` or `Backspace` | `h` is the configured shortcut; `Backspace` is the nvim-tree default. |
+| Close a directory | `h` or `Backspace` | Both close the selected directory node without closing the tree. |
 | Make the selected directory the root | `u` or `Ctrl-]` | `u` is the configured shortcut; `Ctrl-]` is the nvim-tree default. |
 | Create a file or directory | `a` | Enter a name for a file, or end the name with `/` for a directory. |
 | Rename | `r` | `e` renames only the basename. |
@@ -55,10 +55,11 @@ following `nvim-tree` defaults remain available in the sidebar:
 | Filter entries | `f` / `F` | Start / clear the live filter. |
 | Show the live keymap | `g?` | This is the source of truth after plugin updates. |
 
-`-` (change root to the parent directory), `Ctrl-k` (node information), and
-`O` (open without the window picker) are intentionally disabled by the
-Treemux configuration. The configured `F1` replaces the node-information
-shortcut.
+`-` (change root to the parent directory), `Ctrl-k` (node information), `O`
+(open without the window picker), and `q` (close the tree) are intentionally
+disabled by the Treemux configuration. The configured `F1` replaces the
+node-information shortcut. Use `Ctrl-a Tab` only when you intentionally want
+to hide the whole Treemux sidebar.
 
 ### Customizing mappings
 

@@ -39,7 +39,7 @@ local function nvim_tree_on_attach(bufnr)
   vim.keymap.set("n", "<CR>", nt_remote.tabnew, opts("Open in treemux"))
   vim.keymap.set("n", "<C-t>", nt_remote.tabnew, opts("Open in treemux"))
   vim.keymap.set("n", "<2-LeftMouse>", nt_remote.tabnew, opts("Open in treemux"))
-  vim.keymap.set("n", "h", api.tree.close, opts("Close node"))
+  vim.keymap.set("n", "h", api.node.navigate.parent_close, opts("Close directory"))
   vim.keymap.set("n", "v", nt_remote.vsplit, opts("Vsplit in treemux"))
   vim.keymap.set("n", "<C-v>", nt_remote.vsplit, opts("Vsplit in treemux"))
   vim.keymap.set("n", "<C-x>", nt_remote.split, opts("Split in treemux"))
@@ -51,6 +51,8 @@ local function nvim_tree_on_attach(bufnr)
   vim.keymap.del("n", "<C-k>", { buffer = bufnr })
   vim.keymap.set("n", "O", "", { buffer = bufnr })
   vim.keymap.del("n", "O", { buffer = bufnr })
+  vim.keymap.set("n", "q", "", { buffer = bufnr })
+  vim.keymap.del("n", "q", { buffer = bufnr })
 end
 
 require("lazy").setup({
