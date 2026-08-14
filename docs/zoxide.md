@@ -6,15 +6,9 @@
 
 ## Installed state
 
-- Installed version: `0.9.9`
+- `scripts/setup-tools.sh` installs zoxide with its official installer.
 - Bash prepends `~/.local/bin` to `PATH`.
 - Bash initializes zoxide only when `command -v zoxide >/dev/null 2>&1` succeeds.
-
-## History-backed setup notes
-
-- `curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh`
-- repeated `source ~/.bashrc` after setup
-- history shows usage of `z` after installation
 
 ## Current state
 
