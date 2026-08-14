@@ -30,6 +30,7 @@ or a tmux split.
 | `u` | Change the tree root to the selected directory. |
 | `h` | Close the current directory node. |
 | `Enter`, `l`, `Ctrl-t`, or double-click | Open the selected path in Treemux. |
+| `Tab` | Open the selected file in an 85% × 85% tmux popup running Neovim. The popup closes when Neovim exits. |
 | `o` | Open the selected path in the main pane without creating a tmux split. |
 | `v` or `Ctrl-v` | Open the selected path in a vertical tmux split. |
 | `Ctrl-x` | Open the selected path in a horizontal tmux split. |
@@ -59,7 +60,8 @@ following `nvim-tree` defaults remain available in the sidebar:
 (open without the window picker), and `q` (close the tree) are intentionally
 disabled by the Treemux configuration. The configured `F1` replaces the
 node-information shortcut. Use `Ctrl-a Tab` only when you intentionally want
-to hide the whole Treemux sidebar.
+to hide the whole Treemux sidebar. The normal nvim-tree `Tab` preview is
+replaced with the tmux Neovim popup described above.
 
 ### Customizing mappings
 
