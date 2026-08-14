@@ -24,6 +24,26 @@
           "**"
         ]
       }
+    },
+    {
+      "provider": "ollama",
+      "action": "allow",
+      "match": {
+        "patterns": [
+          "planner-agent*",
+          "architect-agent*",
+          "coder-agent*"
+        ]
+      }
+    },
+    {
+      "provider": "ollama",
+      "action": "block",
+      "match": {
+        "patterns": [
+          "*"
+        ]
+      }
     }
   ]
 }

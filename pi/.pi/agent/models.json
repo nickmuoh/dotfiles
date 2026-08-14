@@ -10,9 +10,128 @@
         "thinkingFormat": "openai"
       },
       "models": [
-        {"id": "gemma4:31b-cloud"}
-      ]
+        {
+          "id": "gemma4:31b-cloud"
+        }
+      ],
+      "authHeader": true,
+      "modelOverrides": {
+        "coder-agent-m:qwen35-9b": {
+          "name": "Medium Coder Agent (Qwen3.5-9b)",
+          "contextWindow": 32768,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": "none",
+            "minimal": null,
+            "low": null,
+            "medium": null,
+            "high": null,
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        "coder-agent-m:omnicoder-9b": {
+          "name": "Medium Coder Agent (Omnicoder-9b)",
+          "contextWindow": 32768,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": "none",
+            "minimal": null,
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        "coder-agent-l:qwen35-9b": {
+          "name": "Large Coder Agent (Qwen3.5-9b)",
+          "contextWindow": 65536,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": "none",
+            "minimal": null,
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        "coder-agent-l:omnicoder-9b": {
+          "name": "Large Coder Agent (Omnicoder-9b)",
+          "contextWindow": 65536,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": "none",
+            "minimal": null,
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        "coder-agent-xl:rafw007-gemma4-26b-claude-coder": {
+          "name": "Large Coder Agent (Gemma4-26b)",
+          "contextWindow": 65536,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": "none",
+            "minimal": null,
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        "planner-agent-xl:gemma4-26b": {
+          "name": "Large Planner Agent (Gemma4-26b)",
+          "contextWindow": 262144,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": "none",
+            "minimal": null,
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "maxTokens": 16384
+        }
+      }
     }
   }
 }
-

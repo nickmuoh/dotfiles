@@ -8,7 +8,6 @@
     "patch-package": "^8.0.1"
   },
   "dependencies": {
-    "@jamesjfoong/pi-ollama": "^1.0.1",
     "@juicesharp/rpiv-ask-user-question": "^2.4.0",
     "@m4riok/pi-ide-bridge": "^0.2.0",
     "@ollama/pi-web-search": "^0.0.5",
