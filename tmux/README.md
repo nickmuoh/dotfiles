@@ -56,6 +56,11 @@
 - `q` — exit copy mode without copying.
 - Mouse dragging selects text without copying it automatically.
 
+## Popups
+
+- `prefix + Ctrl-Y` — open lazygit in an 80%-sized popup rooted at the current pane directory.
+- `prefix + Ctrl-T` — open the configured default shell in an 80%-sized popup rooted at the current pane directory. The popup closes when the shell exits.
+
 ## Layout shortcuts
 
 Press `Ctrl-W` directly or `prefix + Ctrl-W` to enter the layout key table, then use:
