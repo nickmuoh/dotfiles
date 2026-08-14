@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { startConfigWatcher, type ConfigStore, type FilterConfig, type Logger } from "../config";
+import { startConfigWatcher, type ConfigStore, type FilterConfig, type Logger } from "../extension";
 
 // Mock fs.watch
 const mockClose = vi.fn();
@@ -21,7 +21,6 @@ function makeStore(config: FilterConfig): ConfigStore & { current: FilterConfig 
     get current() { return current; },
     currentFn: () => current,
     replace: (c: FilterConfig) => { current = c; },
-    setLogger: () => {},
     // For test: expose as a callable
     current: config,
   } as any;

@@ -4,8 +4,8 @@ import {
   ruleMatches,
   isBlocked,
   type ModelLike,
-} from "../matcher";
-import type { FilterConfig, FilterRule } from "../config";
+} from "../extension";
+import type { FilterConfig, FilterRule } from "../extension";
 
 // ---------------------------------------------------------------------------
 // globMatch

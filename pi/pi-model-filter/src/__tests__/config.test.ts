@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { validateConfig, type FilterConfig, type Logger } from "../config";
+import { validateConfig, type FilterConfig, type Logger } from "../extension";
 
 function makeLogger(): Logger & { messages: string[] } {
   const messages: string[] = [];
@@ -122,6 +122,20 @@ describe("validateConfig", () => {
       log,
     );
     expect(result?.rules).toHaveLength(0);
+  });
+
+  it("rejects non-string ids and patterns without coercing them", () => {
+    const log = makeLogger();
+    const result = validateConfig({
+      rules: [{ provider: "*", action: "block", match: { ids: ["ok", 42] } }],
+    }, log);
+    expect(result?.rules).toHaveLength(0);
+    expect(log.messages).toContain("match.ids must be a non-empty array");
+
+    const patterns = validateConfig({
+      rules: [{ provider: "*", action: "block", match: { patterns: [true] } }],
+    }, log);
+    expect(patterns?.rules).toHaveLength(0);
   });
 
   it("rejects match.ids as empty array", () => {

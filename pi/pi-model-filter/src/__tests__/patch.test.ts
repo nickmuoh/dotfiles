@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { patchModelRegistryPrototype, PATCH_STATE } from "../patch";
-import type { ConfigStore, FilterConfig, Logger } from "../config";
+import {
+  patchModelRegistryPrototype,
+  patchModelRuntimePrototype,
+  PATCH_STATE,
+  RUNTIME_PATCH_STATE,
+} from "../extension";
+import type { ConfigStore, FilterConfig, Logger } from "../extension";
 
 function makeLogger(): Logger & { messages: string[] } {
   const messages: string[] = [];
@@ -17,7 +22,6 @@ function makeStore(config: FilterConfig): ConfigStore {
     replace: (c) => {
       current = c;
     },
-    setLogger: () => {},
   };
 }
 
@@ -46,6 +50,54 @@ function makeMockRegistry() {
 
   return { proto, allModels };
 }
+
+function makeMockRuntime() {
+  const models = [
+    { provider: "github-copilot", id: "gpt-5.4", reasoning: true, contextWindow: 200000 },
+    { provider: "github-copilot", id: "gpt-5.5", reasoning: false, contextWindow: 128000 },
+    { provider: "openai", id: "gpt-5.4", reasoning: true, contextWindow: 200000 },
+  ];
+  const proto = {
+    getModels(providerId?: string) { return providerId ? models.filter((m) => m.provider === providerId) : models; },
+    getModel(provider: string, id: string) { return models.find((m) => m.provider === provider && m.id === id); },
+    async getAvailable(providerId?: string) { return this.getModels(providerId).filter((m) => m.id !== "unavailable"); },
+    getAvailableSnapshot() { return models; },
+    async getAuth(providerOrModel: unknown) { return { providerOrModel, ok: true }; },
+  };
+  return { proto, models };
+}
+
+describe("patchModelRuntimePrototype", () => {
+  it("filters current ModelRuntime surfaces and blocks model auth", async () => {
+    const { proto } = makeMockRuntime();
+    const store = makeStore({ rules: [{ provider: "*", action: "block", match: { ids: ["gpt-5.4"] } }], defaultAction: "allow" });
+    const patch = patchModelRuntimePrototype(proto, store, makeLogger());
+
+    expect(proto.getModels()).toHaveLength(1);
+    expect(proto.getModel("github-copilot", "gpt-5.4")).toBeUndefined();
+    expect((await proto.getAvailable()).every((model: any) => model.id !== "gpt-5.4")).toBe(true);
+    expect(proto.getAvailableSnapshot()).toHaveLength(1);
+    await expect(proto.getAuth({ provider: "github-copilot", id: "gpt-5.4" })).rejects.toThrow(
+      "github-copilot:gpt-5.4",
+    );
+    await expect(proto.getAuth("github-copilot")).resolves.toMatchObject({ ok: true });
+
+    patch.unpatch();
+    expect((proto as any)[RUNTIME_PATCH_STATE]).toBeUndefined();
+  });
+
+  it("is idempotent and swaps the runtime store", () => {
+    const { proto } = makeMockRuntime();
+    const first = patchModelRuntimePrototype(proto, makeStore({ rules: [{ provider: "*", action: "block", match: { ids: ["gpt-5.4"] } }], defaultAction: "allow" }), makeLogger());
+    const wrapper = proto.getModels;
+    const secondStore = makeStore({ rules: [], defaultAction: "allow" });
+    const second = patchModelRuntimePrototype(proto, secondStore, makeLogger());
+
+    expect(second).toBe(first);
+    expect(proto.getModels).toBe(wrapper);
+    expect(proto.getModels()).toHaveLength(3);
+  });
+});
 
 describe("patchModelRegistryPrototype", () => {
   it("patches getAll, getAvailable, find, getApiKeyAndHeaders", () => {

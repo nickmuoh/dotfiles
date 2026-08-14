@@ -6,9 +6,7 @@ Hide unwanted GitHub Copilot models, enforce global allowlists, block by reasoni
 
 ## Install
 
-```bash
-pi install pi-model-filter
-```
+This repository deploys the extension through the `pi` Stow package. The stowed wrapper at `pi/.pi/agent/extensions/pi-model-filter.ts` re-exports `pi/pi-model-filter/src/extension.ts`.
 
 ## Configuration
 
@@ -103,11 +101,21 @@ interface FilterConfig {
 
 ## How it works
 
-The extension patches `ModelRegistry.prototype` at load time (before startup model resolution) so filtered models are hidden from `/model`, `--model` CLI flags, and request auth resolution. It does not mutate the registry's internal model array — filtering happens on method results.
+The extension patches both `ModelRuntime.prototype` and the compatibility `ModelRegistry.prototype` at load time (before startup model resolution) so filtered models are hidden from `/model`, `--list-models`, `--model` CLI flags, and request auth resolution. It does not mutate either surface's internal model collections — filtering happens on method results. Configuration is watched and reloaded with a short debounce; invalid reloads fail open.
 
 ### Failure behavior
 
 - **Missing or invalid config**: all models pass through, warning logged.
 - **pi internals change**: extension detects missing methods and disables itself with a warning.
 - **Hot reload**: editing `model-filter.json` takes effect without restarting pi.
+
+## Development
+
+```sh
+cd pi/pi-model-filter
+npm install
+npm test
+npm run typecheck
+npm run build
+```
 
