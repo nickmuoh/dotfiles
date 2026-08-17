@@ -53,5 +53,8 @@
   "autoCompactWindow": 200000,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
-  "autoCompactEnabled": true
+  "autoCompactEnabled": true,
+  "enabledPlugins": {
+    "miro@claude-plugins-official": true
+  }
 }

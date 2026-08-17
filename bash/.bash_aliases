@@ -79,8 +79,10 @@ ghc() {
 
 #
 # Claude Usage Tracker
+# Check latest version at https://github.com/SketchUp/warehouse_spa/blob/develop/scripts/claude-usage-tracker.py
+# Update secret gist https://gist.github.com/nickmuoh/
 #
-alias claude-usage='gh gist view 321b12b9e46ed872f03354609536f8aa --raw | uv run -'
+alias claude-usage='gh gist view dad1c144f050dc62c4256e6605d3e151 --raw | uv run -'
 
 #
 # Windows Terminal
