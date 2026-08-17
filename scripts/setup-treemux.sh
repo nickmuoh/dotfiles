@@ -6,12 +6,6 @@ source "${script_dir}/lib.sh"
 
 enable_error_trap
 
-if [ "${ENABLE_TREEMUX:-1}" != "1" ]; then
-  log "treemux"
-  status skip "disabled"
-  exit 0
-fi
-
 log "treemux venv"
 if ! is_dry_run; then
   need_cmd uv

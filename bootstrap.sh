@@ -28,7 +28,6 @@ Options:
   -h, --help             Show this help message
 
 Optional environment:
-  ENABLE_TREEMUX=0  Skip Treemux setup
   NO_COLOR=1        Disable colored bootstrap output
 
 Examples:
@@ -38,7 +37,6 @@ Examples:
   ./bootstrap.sh --overwrite
   ./bootstrap.sh --reinstall-tools
   ./bootstrap.sh --package claude
-  ENABLE_TREEMUX=0 ./bootstrap.sh
 EOF
 }
 
@@ -46,7 +44,6 @@ DRY_RUN=0
 ADOPT=0
 OVERWRITE=0
 REINSTALL_TOOLS=0
-ENABLE_TREEMUX=1
 declare -a BOOTSTRAP_PACKAGES=()
 
 while (($#)); do
@@ -101,7 +98,6 @@ export DRY_RUN
 export ADOPT
 export OVERWRITE
 export REINSTALL_TOOLS
-export ENABLE_TREEMUX
 export BOOTSTRAP_PACKAGES="${BOOTSTRAP_PACKAGES[*]}"
 
 if bootstrap_package_mode; then
