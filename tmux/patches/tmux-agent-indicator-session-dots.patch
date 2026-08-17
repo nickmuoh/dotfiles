@@ -1,18 +1,28 @@
---- a/scripts/session-dots.sh
-+++ b/scripts/session-dots.sh
-@@ -39,0 +40,2 @@
+--- a/scripts/session-dots.sh	2026-08-17 14:44:13.548481832 -0700
++++ b/scripts/session-dots.sh	2026-08-17 14:44:12.881716386 -0700
+@@ -37,9 +37,17 @@
+ DOTS_COLOR=$(tmux_get_option_or_default "@agent-indicator-session-dots-color" "")
+ ACTIVE_COLOR=$(tmux_get_option_or_default "@agent-indicator-session-dots-active-color" "")
+ ATTENTION_COLOR=$(tmux_get_option_or_default "@agent-indicator-session-dots-attention-color" "yellow")
 +RESET_STYLE=$(tmux_get_option_or_default "@agent-indicator-session-dots-reset-style" "#[default]")
 +DOT_SEPARATOR=$(tmux_get_option_or_default "@agent-indicator-session-dots-separator" "")
-@@ -40,0 +43,4 @@
++IDLE_SYMBOLS=$(tmux_get_option_or_default "@agent-indicator-session-dots-idle" "➊,➋,➌,➍,➎")
+ ATTENTION_STATES=$(tmux_get_option_or_default "@agent-indicator-session-dots-attention-states" "needs-input,done")
 +RUNNING_SYMBOL=$(tmux_get_option_or_default "@agent-indicator-session-dots-running" "◉")
 +DONE_SYMBOL=$(tmux_get_option_or_default "@agent-indicator-session-dots-done" "✓")
 +RUNNING_COLOR=$(tmux_get_option_or_default "@agent-indicator-session-dots-running-color" "brightcyan")
 +DONE_COLOR=$(tmux_get_option_or_default "@agent-indicator-session-dots-done-color" "green")
-@@ -42 +48,2 @@
+ 
 -# Build lookup of attention states
 +# Build lookup of configured attention states. `needs-input` always has the
 +# highest priority; configured attention states then outrank running and done.
-@@ -51,2 +58,5 @@
+ declare -A attention_state_map
+ IFS=',' read -ra STATE_ARRAY <<< "$ATTENTION_STATES"
+ for s in "${STATE_ARRAY[@]}"; do
+@@ -48,25 +56,46 @@
+     [ -n "$s" ] && attention_state_map["$s"]=1
+ done
+ 
 -# Build set of sessions needing attention by scanning agent pane state env vars
 -declare -A attention_sessions
 +# Record the highest-priority tracked pane state for every tmux session:
@@ -20,9 +30,14 @@
 +# always-visible cross-session worker summary rather than only an alert list.
 +declare -A session_states
 +declare -A session_state_priority
-@@ -59 +68,0 @@
+ while IFS= read -r line; do
+     [ -z "$line" ] && continue
+     # Format: TMUX_AGENT_PANE_%xx_STATE=<state>
+     pane_id="${line#TMUX_AGENT_PANE_}"
+     pane_id="${pane_id%%_STATE=*}"
+     state="${line#*_STATE=}"
 -    [ -n "${attention_state_map[$state]:-}" ] || continue
-@@ -61 +70,17 @@
+     session=$(tmux display-message -p -t "$pane_id" '#{session_name}' 2>/dev/null || true)
 -    [ -n "$session" ] && attention_sessions["$session"]=1
 +    [ -n "$session" ] || continue
 +
@@ -41,32 +56,57 @@
 +        session_states["$session"]="$state"
 +        session_state_priority["$session"]="$priority"
 +    fi
-@@ -64 +89 @@
+ done < <(tmux show-environment -g 2>/dev/null | grep '^TMUX_AGENT_PANE_.*_STATE=' || true)
+ 
 -# Clean up seen markers for sessions that no longer need attention
 +# Clean up seen markers for sessions that no longer need attention.
-@@ -69 +94,4 @@
+ while IFS= read -r line; do
+     [ -z "$line" ] && continue
+     seen_session="${line#TMUX_AGENT_SESSION_SEEN_}"
+     seen_session="${seen_session%%=*}"
 -    if [ -z "${attention_sessions[$seen_session]:-}" ]; then
 +    state="${session_states[$seen_session]:-}"
 +    # Associative arrays reject an empty subscript under `set -u`; a seen
 +    # session can legitimately have no active state after its agent settles.
 +    if [ -z "$state" ] || { [ "$state" != "needs-input" ] && [ -z "${attention_state_map[$state]:-}" ]; }; then
-@@ -84 +112 @@
+         tmux set-environment -gu "TMUX_AGENT_SESSION_SEEN_${seen_session}" 2>/dev/null || true
+     fi
+ done < <(tmux show-environment -g 2>/dev/null | grep '^TMUX_AGENT_SESSION_SEEN_' || true)
+@@ -81,35 +110,63 @@
+     if [ -n "$DOTS_COLOR" ]; then
+         printf '#[fg=%s]' "$DOTS_COLOR"
+     else
 -        printf '#[default]'
 +        printf '%s' "$RESET_STYLE"
-@@ -93,0 +122 @@
+     fi
+ }
+ 
+ # Render dots
++IFS=',' read -ra IDLE_SYMBOL_ARRAY <<< "$IDLE_SYMBOLS"
++idle_symbol() {
++    local index="$1"
++    if [ "$index" -ge 1 ] && [ "$index" -le "${#IDLE_SYMBOL_ARRAY[@]}" ]; then
++        printf '%s' "${IDLE_SYMBOL_ARRAY[$((index - 1))]}"
++    else
++        printf '%s' "$INACTIVE_SYMBOL"
++    fi
++}
++
+ result=""
+ if [ -n "$DOTS_COLOR" ]; then
+     result="#[fg=${DOTS_COLOR}]"
+ fi
+ 
 +first_dot=1
-@@ -96,4 +125,4 @@
++session_index=0
+ while IFS= read -r session; do
+     [ -z "$session" ] && continue
 -    has_attention=""
 -    if [ "$session" != "$current" ] && [ -n "${attention_sessions[$session]:-}" ]; then
 -        seen=$(tmux show-environment -g "TMUX_AGENT_SESSION_SEEN_${session}" 2>/dev/null | sed 's/^[^=]*=//' || true)
 -        [ "$seen" != "1" ] && has_attention=1
-+    if [ "$first_dot" = "1" ]; then
-+        first_dot=0
-+    else
-+        result+="$DOT_SEPARATOR"
-@@ -100,0 +130 @@
-+    state="${session_states[$session]:-}"
-@@ -102,11 +132,25 @@
+-    fi
+-
 -    if [ -n "$has_attention" ]; then
 -        result+="$(color_open "$ATTENTION_COLOR")${ATTENTION_SYMBOL}$(color_reset)"
 -    elif [ "$session" = "$current" ]; then
@@ -75,9 +115,15 @@
 -        else
 -            result+="${ACTIVE_SYMBOL}"
 -        fi
--    else
++    session_index=$((session_index + 1))
++    if [ "$first_dot" = "1" ]; then
++        first_dot=0
+     else
 -        result+="${INACTIVE_SYMBOL}"
--    fi
++        result+="$DOT_SEPARATOR"
+     fi
++    state="${session_states[$session]:-}"
++
 +    case "$state" in
 +        needs-input)
 +            result+="$(color_open "$ATTENTION_COLOR")${ATTENTION_SYMBOL}$(color_reset)"
@@ -99,17 +145,10 @@
 +                    result+="${ACTIVE_SYMBOL}"
 +                fi
 +            else
-+                result+="${INACTIVE_SYMBOL}"
++                result+="$(idle_symbol "$session_index")"
 +            fi
 +            ;;
 +    esac
---- a/scripts/pane-focus-in.sh
-+++ b/scripts/pane-focus-in.sh
-@@ -99 +99,3 @@
--# Needs-input visuals are cleared when focus returns to the source pane/window.
-+# Needs-input is acknowledged only when focus returns to the source pane. Clear
-+# both visuals and explicit state so session dots stop advertising an alert that
-+# the user has already inspected.
-@@ -103,0 +106,2 @@
-+    tmux_unset_env "$state_key"
-+    tmux_unset_env "$agent_key"
+ done < <(tmux list-sessions -F '#{session_name}' 2>/dev/null)
+ 
+ if [ -n "$DOTS_COLOR" ]; then
