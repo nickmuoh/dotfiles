@@ -120,3 +120,11 @@ ollama_tunnel() {
 
   set_wt_title "WSL"
 }
+
+
+#
+# Ollama list
+#
+ols() {
+ ollama ls | awk 'NR==1 {print; next} {print | "sort"}'
+}

@@ -331,7 +331,8 @@ INSTALLER_TOOLS=(
   "micro|https://getmic.ro|/usr/bin/micro"
   "copilot|https://gh.io/copilot-install||bash"
   "claude|https://claude.ai/install.sh||bash"
-  "cortex|https://ai.snowflake.com/static/cc-scripts/install.sh"
+  "cortex|https://ai.snowflake.com/static/cc-scripts/install.sh",
+  "ollama|https://ollama.com/install.sh"
 )
 
 log "installer scripts"

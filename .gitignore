@@ -35,3 +35,8 @@ auth.json
 # Nodejs
 **/node_modules/
 .DS_Store
+
+# Generated Ollama custom-model artifacts
+/ollama/.ollama/custom_models/*
+!/ollama/.ollama/custom_models/ollama-compose.yml
+!/ollama/.ollama/custom_models/ollama-sync.py

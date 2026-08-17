@@ -1,0 +1,2 @@
+# Keep only the Ollama sync manifest and source script in the Stow package.
+^/\.ollama/custom_models/(?!ollama-(?:compose\.yml|sync\.py)$).*

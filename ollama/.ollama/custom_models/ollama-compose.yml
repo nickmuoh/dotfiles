@@ -174,7 +174,7 @@ models:
     num_ctx: 65536
     persona: *planner_persona
     params: *planner_defaults
-    modelfile: planner-xl-gemma4-26b/Modelfile
+    modelfile: planner-l-gemma4-26b/Modelfile
 
   - tag: planner-agent-xl:gemma4-26b
     enabled: false
