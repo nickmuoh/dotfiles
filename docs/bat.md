@@ -14,15 +14,6 @@
 - Other shell/docs depend on this alias existing:
   - micro `fzfinder` preview uses `batcat`
 
-## History-backed setup notes
-
-- `bat`
-- `sudo apt install bat`
-- `bat ~/.tmux.conf`
-- `bat /mnt/c/Users/nmuoh/.ssh/config`
-- `bat ~/.config/micro/bindings.json`
-- `micro ~/.bash_aliases`
-
 ## Caveats
 
 - On this system the executable is `batcat`, not `bat`, so the alias is what makes `bat` work in your shell.

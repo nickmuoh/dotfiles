@@ -30,6 +30,26 @@ local function nvim_tree_on_attach(bufnr)
     return { desc = "nvim-tree: " .. desc, buffer = bufnr, noremap = true, silent = true, nowait = true }
   end
 
+  local function open_in_tmux_popup()
+    local node = api.tree.get_node_under_cursor()
+    if not node or node.type ~= "file" then
+      return
+    end
+
+    vim.fn.jobstart({
+      "tmux",
+      "display-popup",
+      "-d",
+      vim.fn.fnamemodify(node.absolute_path, ":h"),
+      "-w",
+      "85%",
+      "-h",
+      "85%",
+      "-E",
+      "nvim " .. vim.fn.shellescape(node.absolute_path),
+    })
+  end
+
   api.config.mappings.default_on_attach(bufnr)
 
   vim.keymap.set("n", "u", api.tree.change_root_to_node, opts("Dir up"))
@@ -39,7 +59,8 @@ local function nvim_tree_on_attach(bufnr)
   vim.keymap.set("n", "<CR>", nt_remote.tabnew, opts("Open in treemux"))
   vim.keymap.set("n", "<C-t>", nt_remote.tabnew, opts("Open in treemux"))
   vim.keymap.set("n", "<2-LeftMouse>", nt_remote.tabnew, opts("Open in treemux"))
-  vim.keymap.set("n", "h", api.tree.close, opts("Close node"))
+  vim.keymap.set("n", "<Tab>", open_in_tmux_popup, opts("Open in tmux popup"))
+  vim.keymap.set("n", "h", api.node.navigate.parent_close, opts("Close directory"))
   vim.keymap.set("n", "v", nt_remote.vsplit, opts("Vsplit in treemux"))
   vim.keymap.set("n", "<C-v>", nt_remote.vsplit, opts("Vsplit in treemux"))
   vim.keymap.set("n", "<C-x>", nt_remote.split, opts("Split in treemux"))
@@ -51,6 +72,8 @@ local function nvim_tree_on_attach(bufnr)
   vim.keymap.del("n", "<C-k>", { buffer = bufnr })
   vim.keymap.set("n", "O", "", { buffer = bufnr })
   vim.keymap.del("n", "O", { buffer = bufnr })
+  vim.keymap.set("n", "q", "", { buffer = bufnr })
+  vim.keymap.del("n", "q", { buffer = bufnr })
 end
 
 require("lazy").setup({

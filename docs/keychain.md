@@ -2,16 +2,11 @@
 
 SSH agent manager. Keeps one agent per host instead of spawning a new agent per terminal.
 
-This is separate from the WSL 1Password bridge flow documented in `docs/1password-wsl.md`.
+This is separate from the WSL 1Password bridge flow documented in
+[`1password.md`](1password.md).
 
-## Install
-
-Installed as a Python zipapp (`.pyz`) via `setup-tools.sh` `GITHUB_INSTALLS`:
-
-- Source: `danielrobbins/keychain` GitHub releases
-- Version: `3.0.0_beta1`
-- Binary: `~/.local/bin/keychain` (placed by bootstrap, **not** stow-tracked)
-- Requires: Python 3.9+ (present on Ubuntu 24.04+)
+`scripts/setup-tools.sh` installs keychain as a Python zipapp from the
+`danielrobbins/keychain` release into `~/.local/bin/keychain`.
 
 ## Important configuration paths
 
@@ -62,9 +57,3 @@ args = -t 3600          # expire keys after 1 hour
 
 Completion file is from the v2 release (pinned commit), stow-tracked in `bash-completions/`.
 May need updating when keychain v3 ships a stable release with its own completion.
-
-## History
-
-- Previously installed as a raw shell script from a pinned GitHub commit (`danielrobbins/keychain` `2b3c181`)
-- Switched to Python zipapp (v3 `.pyz`) for the fully maintained and testable rewrite
-- v2 used `eval "$(keychain --quiet --eval key)"` syntax; v3 uses `keychain add --eval key`

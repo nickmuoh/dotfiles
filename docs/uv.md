@@ -2,14 +2,8 @@
 
 Python package and runtime manager.
 
-## Install
-
-Installed by `scripts/setup-tools.sh` with the official installer:
-
-- Source: `astral-sh/uv` installer
-- Installer: `https://astral.sh/uv/install.sh`
-- Command: `curl -sSfL https://astral.sh/uv/install.sh | sh`
-- Binary: `~/.local/bin/uv`
+`scripts/setup-tools.sh` installs uv with its official installer at
+`~/.local/bin/uv`.
 
 ## Important configuration paths
 

@@ -2,15 +2,8 @@
 
 Structural diff tool that understands syntax. Used as the primary git diff driver.
 
-## Install
-
-Installed via snap (managed by `setup-tools.sh`):
-
-```sh
-sudo snap install difftastic
-```
-
-Binary: `/snap/bin/difftastic`
+`scripts/setup-tools.sh` installs difftastic with Snap. Its binary is
+`/snap/bin/difftastic`.
 
 ## Local wrapper (`difft`)
 

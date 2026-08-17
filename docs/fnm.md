@@ -2,15 +2,8 @@
 
 Fast Node Manager. Installs and switches Node.js versions.
 
-## Install
-
-- Directory structure: created by the `fnm` stow package (`scripts/setup-stow.sh`)
-- Binary: installed by `scripts/setup-tools.sh` with the official installer:
-  - Source: `Schniz/fnm` GitHub repository
-  - Installer: `https://fnm.vercel.app/install`
-  - Command: `curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell --install-dir "$HOME/.fnm"`
-  - Dependencies: `curl`, `unzip`
-  - Shell mutation: disabled with `--skip-shell`; Bash initialization is stow-tracked
+`scripts/setup-stow.sh` creates `~/.fnm/`; `scripts/setup-tools.sh` installs the
+fnm binary there with its official installer. Bash initialization is stow-tracked.
 
 ## Important configuration paths
 
