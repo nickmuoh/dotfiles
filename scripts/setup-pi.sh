@@ -6,7 +6,7 @@ source "${script_dir}/lib.sh"
 
 enable_error_trap
 
-if ! bootstrap_package_selected pi; then
+if ! registry_hook_selected setup-pi; then
   exit 0
 fi
 

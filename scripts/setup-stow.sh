@@ -36,23 +36,14 @@ for arg in "$@"; do
 done
 
 log "stow packages"
-if ! is_dry_run; then
-  need_cmd stow
-fi
-
+# package selection is exported by bootstrap.sh before this subprocess starts.
 repo_root="$(bootstrap_root)"
-all_packages=(bash 1password micro tmux treemux tmux-cpu-mem-monitor nvim starship fzf fnm local-bin bash-completions claude pi)
-
-if bootstrap_package_mode; then
-  packages=()
-  for pkg in "${all_packages[@]}"; do
-    if bootstrap_package_selected "$pkg"; then
-      packages+=("$pkg")
-    fi
-  done
-else
-  packages=("${all_packages[@]}")
-fi
+mapfile -t stow_records < <(registry_stow_packages)
+packages=()
+for record in "${stow_records[@]}"; do
+  IFS='|' read -r _stow_package _stow_args <<< "$record"
+  packages+=("$_stow_package")
+done
 
 if [[ "${ADOPT:-0}" == "1" && "${OVERWRITE:-0}" == "1" ]]; then
   die "--adopt and --overwrite cannot be used together"
@@ -133,14 +124,6 @@ if is_dry_run; then
   stow_args=(-nv)
 fi
 
-local_bin_dir="$repo_root/local-bin/.local/bin"
-if [[ -d "$local_bin_dir" ]]; then
-  for helper in "$local_bin_dir"/*; do
-    [[ -f "$helper" ]] || continue
-    ensure_executable "$helper"
-  done
-fi
-
 if [[ "${ADOPT:-0}" == "1" ]]; then
   stow_args+=(--adopt)
 fi
@@ -149,11 +132,37 @@ if [[ "${OVERWRITE:-0}" == "1" ]]; then
   remove_overwrite_conflicts
 fi
 
-remove_matching_treemux_target
-
-if is_dry_run; then
-  status plan "cd $(printf '%q' "$repo_root") && $(command_string stow "${stow_args[@]}" "${packages[@]}")"
-else
-  status run "cd $(printf '%q' "$repo_root") && $(command_string stow "${stow_args[@]}" "${packages[@]}")"
-  (cd "$repo_root" && stow "${stow_args[@]}" "${packages[@]}")
+if ((${#packages[@]} == 0)); then
+  status skip "no Stow packages selected"
+  exit 0
 fi
+if ! is_dry_run; then
+  need_cmd stow
+fi
+
+local_bin_dir="$repo_root/local-bin/.local/bin"
+if bootstrap_package_selected local-bin && [[ -d "$local_bin_dir" ]]; then
+  for helper in "$local_bin_dir"/*; do
+    [[ -f "$helper" ]] || continue
+    ensure_executable "$helper"
+  done
+fi
+
+if bootstrap_package_selected treemux; then
+  remove_matching_treemux_target
+fi
+
+for record in "${stow_records[@]}"; do
+  IFS='|' read -r package package_args <<< "$record"
+  package_stow_args=("${stow_args[@]}")
+  if [[ -n "$package_args" ]]; then
+    read -r -a extra_args <<< "$package_args"
+    package_stow_args+=("${extra_args[@]}")
+  fi
+  if is_dry_run; then
+    status plan "cd $(printf '%q' "$repo_root") && $(command_string stow "${package_stow_args[@]}" "$package")"
+  else
+    status run "cd $(printf '%q' "$repo_root") && $(command_string stow "${package_stow_args[@]}" "$package")"
+    (cd "$repo_root" && stow "${package_stow_args[@]}" "$package")
+  fi
+done

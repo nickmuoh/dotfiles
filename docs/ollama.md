@@ -1,5 +1,7 @@
 # Ollama
 
+Ollama has canonical bootstrap ID `ollama`. `./bootstrap.sh --package ollama` runs the Ollama installer and deploys the tracked `ollama/` Stow package with `stow --no-folding ollama`; the installer metadata and Stow ownership live together in `scripts/package-registry.sh`. `ollama` is also included in a full bootstrap. `--package ollama` does not install unrelated tools.
+
 The Ollama package deploys configuration and custom model definitions from `ollama/`.
 
 ## Custom model sync

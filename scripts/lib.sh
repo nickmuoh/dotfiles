@@ -4,6 +4,9 @@ set -euo pipefail
 __BOOTSTRAP_TEMP_DIRS=()
 __BOOTSTRAP_TRAPS_ENABLED=0
 
+# The registry is intentionally Bash-only so it works before bootstrap installs tools.
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/package-registry.sh"
+
 # Print the repository root based on this library's location.
 # Args: none.
 # Outputs: absolute repo path on stdout.
@@ -31,22 +34,10 @@ bootstrap_package_mode() {
 # Args: $@ package names to match against the selected package list.
 # Returns: 0 when package mode is off or any name matches.
 bootstrap_package_selected() {
-  local requested selected candidate
-  local -a requested_packages=()
-
-  if ! bootstrap_package_mode; then
-    return 0
-  fi
-
-  read -r -a requested_packages <<< "${BOOTSTRAP_PACKAGES:-}"
+  local candidate
   for candidate in "$@"; do
-    for selected in "${requested_packages[@]}"; do
-      if [[ "$selected" == "$candidate" ]]; then
-        return 0
-      fi
-    done
+    registry_package_selected "$candidate" && return 0
   done
-
   return 1
 }
 

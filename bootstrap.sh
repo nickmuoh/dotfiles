@@ -82,12 +82,24 @@ while (($#)); do
       exit 0
       ;;
     *)
-      printf 'bootstrap: unknown argument: %s\n' "$arg" >&2
+      printf 'bootstrap: unknown argument: %s\n' "$1" >&2
       usage >&2
       exit 1
       ;;
   esac
 done
+
+if ((${#BOOTSTRAP_PACKAGES[@]})); then
+  if ! registry_validate "${BOOTSTRAP_PACKAGES[@]}"; then
+    usage >&2
+    exit 1
+  fi
+  declare -a canonical_packages=()
+  for requested in "${BOOTSTRAP_PACKAGES[@]}"; do
+    canonical_packages+=("$(registry_resolve "$requested")")
+  done
+  BOOTSTRAP_PACKAGES=("${canonical_packages[@]}")
+fi
 
 if [[ "$ADOPT" == "1" && "$OVERWRITE" == "1" ]]; then
   printf 'bootstrap: --adopt and --overwrite cannot be used together\n' >&2
@@ -99,6 +111,7 @@ export ADOPT
 export OVERWRITE
 export REINSTALL_TOOLS
 export BOOTSTRAP_PACKAGES="${BOOTSTRAP_PACKAGES[*]}"
+selected_packages="$BOOTSTRAP_PACKAGES"
 
 if bootstrap_package_mode; then
   scripts=(
@@ -122,7 +135,7 @@ fi
 
 for script in "${scripts[@]}"; do
   ensure_executable "${script_dir}/scripts/${script}"
-  "${script_dir}/scripts/${script}"
+  BOOTSTRAP_PACKAGES="$selected_packages" "${script_dir}/scripts/${script}"
 done
 
 log "Bootstrap complete"

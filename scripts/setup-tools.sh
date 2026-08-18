@@ -52,15 +52,29 @@ apt_package_installed() {
   dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q 'install ok installed'
 }
 
-## [apt packages]
-# Add or remove package names here. apt handles install and future upgrades.
-APT_PACKAGES=(
-  bash-completion curl git fd-find fzf bat jq yq tmux starship gh stow
-  universal-ctags unzip socat psmisc libpq-dev libsqlite3-dev python3-dev gcc
-  gnome-keyring libsecret-1-0 xdg-utils
-)
-
-if ! bootstrap_package_mode; then
+# Materialize selected units from the registry; installation logic remains below.
+APT_PACKAGES=()
+GITHUB_INSTALLS=()
+SNAP_PACKAGES=()
+INSTALLER_TOOLS=()
+while read -r registry_id; do
+  registry_load_unit "$registry_id"
+  case "$REGISTRY_INSTALL_METHOD" in
+    apt)
+      APT_PACKAGES+=("${REGISTRY_INSTALL_NAMES[@]}")
+      ;;
+    github)
+      GITHUB_INSTALLS+=("$REGISTRY_COMMAND|$REGISTRY_DOWNLOAD_METHOD|$REGISTRY_URL|$REGISTRY_DOWNLOAD_DETAIL")
+      ;;
+    snap)
+      SNAP_PACKAGES+=("${REGISTRY_INSTALL_NAMES[0]}|${REGISTRY_INSTALL_ARGS[*]}")
+      ;;
+    installer)
+      INSTALLER_TOOLS+=("$REGISTRY_COMMAND|$REGISTRY_URL|$REGISTRY_INSTALL_DESTINATION|$REGISTRY_INSTALL_SHELL|${REGISTRY_INSTALL_ARGS[*]}")
+      ;;
+  esac
+done < <(registry_selected_ids)
+mapfile -t APT_PACKAGES < <(printf '%s\n' "${APT_PACKAGES[@]}" | awk 'NF && !seen[$0]++')
 
 ## [github release versions]
 # Update the version variable here when upgrading a tool.
@@ -109,14 +123,6 @@ KEYCHAIN_VERSION="3.0.0_beta1"
 #              binary and extracts it to ~/.local/bin/<cmd>.
 #              extra: asset name prefix (the architecture suffix is appended).
 #
-GITHUB_INSTALLS=(
-  "nvim|tarball|https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz|nvim-linux-x86_64"
-  "rg|deb|https://github.com/BurntSushi/ripgrep/releases/download/${RG_VERSION}/ripgrep_${RG_VERSION}-1_amd64.deb"
-  "pandoc|bin|https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-linux-amd64.tar.gz|pandoc-${PANDOC_VERSION}/bin/pandoc"
-  "npiperelay.exe|zipbin|https://github.com/jstarks/npiperelay/releases/download/v0.1.0/npiperelay_windows_amd64.zip|npiperelay.exe"
-  "keychain|direct|https://github.com/danielrobbins/keychain/releases/download/${KEYCHAIN_VERSION}/keychain-${KEYCHAIN_VERSION}.pyz"
-  "lazygit|latest-bin|https://api.github.com/repos/jesseduffield/lazygit/releases/latest|lazygit"
-)
 
 ## [install]
 
@@ -140,7 +146,9 @@ if [ "${#apt_targets[@]}" -gt 0 ]; then
 fi
 
 log "github release installs"
-run mkdir -p "$HOME/.local/bin" "$HOME/.local/opt"
+if ((${#GITHUB_INSTALLS[@]})); then
+  run mkdir -p "$HOME/.local/bin" "$HOME/.local/opt"
+fi
 
 for entry in "${GITHUB_INSTALLS[@]}"; do
   IFS='|' read -r cmd method url extra <<< "$entry"
@@ -278,10 +286,6 @@ done
 # Add package entries here. snap handles install and updates.
 # Format: "pkg" or "pkg|flags"
 # Skipped when: snap list <pkg> already succeeds.
-SNAP_PACKAGES=(
-  difftastic
-  "aws-cli|--classic"
-)
 
 log "snap packages"
 for entry in "${SNAP_PACKAGES[@]}"; do
@@ -311,8 +315,6 @@ for entry in "${SNAP_PACKAGES[@]}"; do
   fi
 done
 
-fi  # end non-package-mode sections
-
 ## [installer scripts]
 # Tools installed via their own installer scripts.
 #
@@ -324,16 +326,6 @@ fi  # end non-package-mode sections
 #   "cmd|url||shell|shell_args"  — installer runs with the named shell and args
 #
 # Skipped when: command -v <cmd> succeeds.
-INSTALLER_TOOLS=(
-  "zoxide|https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh"
-  "uv|https://astral.sh/uv/install.sh"
-  "fnm|https://fnm.vercel.app/install||bash|-s -- --skip-shell --install-dir \"$HOME/.fnm\""
-  "micro|https://getmic.ro|/usr/bin/micro"
-  "copilot|https://gh.io/copilot-install||bash"
-  "claude|https://claude.ai/install.sh||bash"
-  "cortex|https://ai.snowflake.com/static/cc-scripts/install.sh",
-  "ollama|https://ollama.com/install.sh"
-)
 
 log "installer scripts"
 for entry in "${INSTALLER_TOOLS[@]}"; do
@@ -364,56 +356,57 @@ for entry in "${INSTALLER_TOOLS[@]}"; do
   fi
 done
 
-if ! bootstrap_package_mode; then
-
 ## [fzf]
 # Installed via git clone + bundled install script (not a pipe-to-sh installer).
-if should_reinstall_tools; then
-  if [ -d "$HOME/.fzf/.git" ]; then
-    run git -C "$HOME/.fzf" pull --ff-only
+if registry_hook_selected setup-tools:fzf; then
+  if should_reinstall_tools; then
+    if [ -d "$HOME/.fzf/.git" ]; then
+      run git -C "$HOME/.fzf" pull --ff-only
+    else
+      clone_if_missing "$HOME/.fzf" --depth 1 https://github.com/junegunn/fzf.git
+    fi
+    run_sh "$HOME/.fzf/install --all --no-update-rc"
+  elif command_exists fzf; then
+    status skip "fzf already installed"
   else
     clone_if_missing "$HOME/.fzf" --depth 1 https://github.com/junegunn/fzf.git
-  fi
-  run_sh "$HOME/.fzf/install --all --no-update-rc"
-elif command_exists fzf; then
-  status skip "fzf already installed"
-else
-  clone_if_missing "$HOME/.fzf" --depth 1 https://github.com/junegunn/fzf.git
-  if [ ! -f "$HOME/.fzf.bash" ]; then
-    run_sh "$HOME/.fzf/install --all --no-update-rc"
+    if [ ! -f "$HOME/.fzf.bash" ]; then
+      run_sh "$HOME/.fzf/install --all --no-update-rc"
+    fi
   fi
 fi
 
 ## [fd]
 # Post-install setup: symlink fd to fdfind and generate bash completions.
-if command_exists fdfind; then
-  sublog "fd"
-  # Create symlink
-  if [ ! -L "$HOME/.local/bin/fd" ] || [ "$(readlink "$HOME/.local/bin/fd")" != "/usr/bin/fdfind" ]; then
-    if is_dry_run; then
-      status plan "ln -sf /usr/bin/fdfind ~/.local/bin/fd"
+if registry_hook_selected setup-tools:fd; then
+  if command_exists fdfind; then
+    sublog "fd"
+    run mkdir -p "$HOME/.local/bin"
+    # Create symlink
+    if [ ! -L "$HOME/.local/bin/fd" ] || [ "$(readlink "$HOME/.local/bin/fd")" != "/usr/bin/fdfind" ]; then
+      if is_dry_run; then
+        status plan "ln -sf /usr/bin/fdfind ~/.local/bin/fd"
+      else
+        run ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
+      fi
     else
-      run ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
+      status skip "fd symlink already set up"
     fi
-  else
-    status skip "fd symlink already set up"
-  fi
 
-  # Generate bash completions
-  completions_dir="$HOME/.local/share/bash-completion/completions"
-  if [ ! -f "$completions_dir/fd" ] || should_reinstall_tools; then
-    if is_dry_run; then
-      status plan "mkdir -p $completions_dir && fdfind --gen-completions bash > $completions_dir/fd"
+    # Generate bash completions
+    completions_dir="$HOME/.local/share/bash-completion/completions"
+    if [ ! -f "$completions_dir/fd" ] || should_reinstall_tools; then
+      if is_dry_run; then
+        status plan "mkdir -p $completions_dir && fdfind --gen-completions bash > $completions_dir/fd"
+      else
+        run mkdir -p "$completions_dir"
+        status run "fdfind --gen-completions bash > $completions_dir/fd"
+        fdfind --gen-completions bash > "$completions_dir/fd"
+      fi
     else
-      run mkdir -p "$completions_dir"
-      status run "fdfind --gen-completions bash > $completions_dir/fd"
-      fdfind --gen-completions bash > "$completions_dir/fd"
+      status skip "fd completions already installed"
     fi
   else
-    status skip "fd completions already installed"
+    status skip "fd (fdfind) not installed"
   fi
-else
-  status skip "fd (fdfind) not installed"
 fi
-
-fi  # end non-package-mode sections
