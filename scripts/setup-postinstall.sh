@@ -5,6 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/lib.sh"
 
 enable_error_trap
+parse_dry_run_args scripts/setup-postinstall.sh "$@"
 
 log "postinstall"
 
@@ -56,6 +57,49 @@ sync_agent_skills_cmd() {
   return 1
 }
 
+# Collect existing identity files selected by the effective GitHub SSH config.
+# Do not fall back to arbitrary ~/.ssh keys: multiple keys must not be guessed.
+discover_github_ssh_keys() {
+  local keyword candidate existing
+  local duplicate
+  SSH_KEY_CANDIDATES=()
+
+  command -v ssh >/dev/null 2>&1 || return 0
+  while read -r keyword candidate; do
+    [[ "$keyword" == "identityfile" && -n "$candidate" ]] || continue
+    if [[ "$candidate" == "~/"* ]]; then
+      candidate="$HOME/${candidate#"~/"}"
+    elif [[ "$candidate" != /* ]]; then
+      continue
+    fi
+    [[ "$candidate" != *%* && -f "$candidate" ]] || continue
+
+    duplicate=0
+    for existing in "${SSH_KEY_CANDIDATES[@]}"; do
+      if [[ "$existing" == "$candidate" ]]; then
+        duplicate=1
+        break
+      fi
+    done
+    [[ "$duplicate" == "1" ]] || SSH_KEY_CANDIDATES+=("$candidate")
+  done < <(ssh -G github.com 2>/dev/null)
+}
+
+show_ssh_key_todo() {
+  discover_github_ssh_keys
+  case "${#SSH_KEY_CANDIDATES[@]}" in
+    0)
+      status todo 'ssh-add ~/.ssh/<your-github-key> (no configured GitHub key found)'
+      ;;
+    1)
+      status todo "$(command_string ssh-add "${SSH_KEY_CANDIDATES[0]}")"
+      ;;
+    *)
+      status todo 'ssh-add ~/.ssh/<your-github-key> (multiple configured keys found; choose the GitHub key)'
+      ;;
+  esac
+}
+
 if [ -f "$HOME/.agents/.skill-lock.json" ]; then
   if sync_cmd="$(sync_agent_skills_cmd)"; then
     if is_dry_run; then
@@ -70,5 +114,5 @@ else
   status todo "sync-agent-skills after ~/.agents/.skill-lock.json is available and node tooling is installed"
 fi
 
-status todo "ssh-add ~/.ssh/nick_muoh.trimble-github.ed25519"
+show_ssh_key_todo
 status todo "source ~/.bashrc"

@@ -24,6 +24,30 @@ is_dry_run() {
   [[ "${DRY_RUN:-0}" == "1" ]]
 }
 
+# Parse the common options for setup scripts that have no script-specific flags.
+# Args: $1 usage path, remaining args from the setup script.
+parse_dry_run_args() {
+  local usage_path=$1
+  shift
+
+  while (($#)); do
+    case "$1" in
+      -n|--dry-run)
+        DRY_RUN=1
+        shift
+        ;;
+      -h|--help)
+        printf 'Usage: %s [-n|--dry-run]\n' "$usage_path"
+        exit 0
+        ;;
+      *)
+        die "unknown ${usage_path##*/} argument: $1"
+        ;;
+    esac
+  done
+  export DRY_RUN
+}
+
 # Return success when bootstrap package mode is active.
 # Args: none. Reads BOOTSTRAP_PACKAGES from environment.
 bootstrap_package_mode() {
@@ -87,6 +111,9 @@ status() {
   local label=$1
   shift
   local label_color=36
+  local message=$*
+  local line
+  local first_line=1
   case "$label" in
     done) label_color=32 ;;
     skip) label_color=33 ;;
@@ -94,9 +121,17 @@ status() {
     error) label_color=31 ;;
     plan) label_color=36 ;;
   esac
-  printf '    '
-  color "$label_color" "$(printf '%-7s' "$label")"
-  printf '  %s\n' "$*"
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$first_line" == "1" ]]; then
+      printf '    '
+      color "$label_color" "$(printf '%-7s' "$label")"
+      printf '  %s\n' "$line"
+      first_line=0
+    else
+      printf '             %s\n' "$line"
+    fi
+  done <<< "$message"
 }
 
 # Print a shell-escaped command string from an argv-style command.

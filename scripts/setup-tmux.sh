@@ -6,6 +6,33 @@ source "${script_dir}/lib.sh"
 
 enable_error_trap
 
+usage() {
+  cat <<'EOF'
+Usage: scripts/setup-tmux.sh [options]
+
+Options:
+  -n, --dry-run  Print planned commands without changing files
+  -h, --help     Show this help message
+EOF
+}
+
+while (($#)); do
+  case "$1" in
+    -n|--dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown setup-tmux argument: $1"
+      ;;
+  esac
+done
+export DRY_RUN
+
 log "tmux plugins"
 if ! is_dry_run; then
   need_cmd git

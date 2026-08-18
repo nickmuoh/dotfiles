@@ -5,6 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/lib.sh"
 
 enable_error_trap
+parse_dry_run_args scripts/setup-wsl.sh "$@"
 
 log "WSL"
 if ! grep -qi microsoft /proc/version 2>/dev/null && [ -z "${WSL_DISTRO_NAME:-}" ]; then
@@ -29,11 +30,12 @@ options = "metadata"
 EOF
 
 if is_dry_run; then
-  status plan "sudo tee /etc/wsl.conf >/dev/null <<'EOF'"
-  echo "$wsl_conf"
+  status plan "sudo tee /etc/wsl.conf >/dev/null <<'EOF'
+$wsl_conf
+EOF"
   status todo "wsl --shutdown from Windows"
 else
   status run "sudo tee /etc/wsl.conf >/dev/null"
-  echo "$wsl_conf" | sudo tee /etc/wsl.conf >/dev/null
+  printf '%s\n' "$wsl_conf" | sudo tee /etc/wsl.conf >/dev/null
   status todo "wsl --shutdown from Windows after this completes"
 fi

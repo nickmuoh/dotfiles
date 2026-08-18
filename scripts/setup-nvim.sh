@@ -5,6 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/lib.sh"
 
 enable_error_trap
+parse_dry_run_args scripts/setup-nvim.sh "$@"
 
 log "neovim bootstrap"
 if ! is_dry_run; then

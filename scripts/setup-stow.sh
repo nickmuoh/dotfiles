@@ -11,6 +11,7 @@ usage() {
 Usage: scripts/setup-stow.sh [options]
 
 Options:
+  -n, --dry-run    Print planned commands without changing files
       --adopt      Pass --adopt to GNU Stow
       --overwrite  Remove existing package-file targets before stowing
   -h, --help       Show this help message
@@ -19,6 +20,9 @@ EOF
 
 for arg in "$@"; do
   case "$arg" in
+    -n|--dry-run)
+      DRY_RUN=1
+      ;;
     --adopt)
       ADOPT=1
       ;;
@@ -34,6 +38,7 @@ for arg in "$@"; do
       ;;
   esac
 done
+export DRY_RUN
 
 log "stow packages"
 # package selection is exported by bootstrap.sh before this subprocess starts.
