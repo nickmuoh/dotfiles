@@ -1,1 +1,1 @@
-export { default } from "../../../pi-tmux-agent-indicator/src/extension.ts";
+export { default } from "../custom_extensions/pi-tmux-agent-indicator/src/extension.ts";
