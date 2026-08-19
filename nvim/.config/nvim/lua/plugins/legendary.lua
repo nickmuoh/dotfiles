@@ -32,6 +32,7 @@ return {
         { ":Mason", description = "Open Mason LSP installer" },
         { ":RenderMarkdown buf_enable", description = "Render the current Markdown buffer" },
         { ":RenderMarkdown buf_disable", description = "Use the raw current Markdown buffer" },
+        { ":set wrap!", description = "Toggle word wrap" },
       },
       keymaps = {
         {
