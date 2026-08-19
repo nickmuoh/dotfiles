@@ -1,7 +1,7 @@
 {
   "providers": {
     "ollama": {
-      "baseUrl": "http://172.17.48.1:11435/v1",
+      "baseUrl": "http://localhost:11434/v1",
       "api": "openai-completions",
       "apiKey": "ollama",
       "compat": {
@@ -10,6 +10,9 @@
         "thinkingFormat": "openai"
       },
       "models": [
+        {
+          "id": "deepseek-v4-flash:cloud"
+        },
         {
           "id": "gemma4:31b-cloud"
         }
@@ -111,9 +114,9 @@
             "cacheWrite": 0
           }
         },
-        "planner-agent-xl:gemma4-26b": {
+        "planner-agent-l:gemma4-26b": {
           "name": "Large Planner Agent (Gemma4-26b)",
-          "contextWindow": 262144,
+          "contextWindow": 65536,
           "reasoning": true,
           "thinkingLevelMap": {
             "off": "none",

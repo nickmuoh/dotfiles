@@ -5,9 +5,6 @@
       "action": "allow",
       "match": {
         "ids": [
-          "claude-opus-4.8",
-          "claude-sonnet-4.6",
-          "claude-fable-5",
           "gpt-5.6-sol",
           "gpt-5.6-terra",
           "gpt-5.6-luna",
@@ -26,13 +23,33 @@
       }
     },
     {
-      "provider": "ollama",
+      "provider": "amazon-bedrock",
       "action": "allow",
       "match": {
         "patterns": [
-          "planner-agent*",
-          "architect-agent*",
-          "coder-agent*"
+          "us.anthropic.claude-sonnet-4-6*",
+          "us.anthropic.claude-sonnet-5*",
+          "us.anthropic.claude-opus-4-8*",
+          "us.anthropic.claude-opus-5*",
+          "us.anthropic.claude-haiku-*"
+        ]
+      }
+    },
+    {
+      "provider": "amazon-bedrock",
+      "action": "block",
+      "match": {
+        "patterns": [
+          "**"
+        ]
+      }
+    },
+    {
+      "provider": "ollama",
+      "action": "allow",
+      "match": {
+        "ids": [
+          "gemma4:31b-cloud"
         ]
       }
     },
