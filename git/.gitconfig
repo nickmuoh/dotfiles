@@ -2,34 +2,77 @@
 [include]
     path = ~/.gitconfig.local
 
-[url "https://github.com/"]
-    insteadOf = git://github.com/
+#
+# Core Settings
+#
 
 [core]
     editor = nvim
     autocrlf = input
-	fileMode = false
+    fileMode = false
     attributesFile = ~/.git-attributes
 
 [init]
     defaultBranch = main
 
+[url "https://github.com/"]
+    insteadOf = git://github.com/
+
+
+#
+# Credentials & Security
+#
+
+[credential "https://github.com"]
+    helper = 
+    helper = !/usr/bin/gh auth git-credential
+
+[credential "https://gist.github.com"]
+    helper = 
+    helper = !/usr/bin/gh auth git-credential
+
+[gpg "ssh"]
+    program = "/mnt/c/Users/nmuoh/AppData/Local/Microsoft/WindowsApps/op-ssh-sign-wsl.exe"
+
+#
+# Diff & Merge Tools
+#
+
+[diff]
+    tool = difftastic
+
 [diff "difftastic"]
     command = difft
 
-# ── difftastic ────────────────────────────────────────────────────────────────
-[diff]
-    tool     = difftastic
+[diff "jupyternotebook"]
+    command = git-nbdiffdriver diff
+
+[difftool]
+    prompt = false
 
 [difftool "difftastic"]
     # Fallback for `git difftool -t difftastic`.
     cmd = difft "$MERGED" "$LOCAL" "abcdef1" "100644" "$REMOTE" "abcdef2" "100644"
 
-[difftool]
-	prompt = false
+[difftool "nbdime"]
+    cmd = git-nbdifftool diff \"$LOCAL\" \"$REMOTE\" \"$BASE\"
+
+[merge "jupyternotebook"]
+    driver = git-nbmergedriver merge %O %A %B %L %P
+    name = jupyter notebook merge driver
+
+[mergetool]
+    prompt = false
+
+[mergetool "nbdime"]
+    cmd = git-nbmergetool merge \"$BASE\" \"$LOCAL\" \"$REMOTE\" \"$MERGED\"
 
 [pager]
     difftool = true
+
+#
+# Aliases
+#
 
 [alias]
     # Run `git log -p` with difftastic diffs.
@@ -38,24 +81,10 @@
     dshow = -c diff.difftastic.command=difft show --ext-diff
     # Run `git diff` with difftastic.
     difft = -c diff.difftastic.command=difft diff
+
+#
+# Maintenance
+#
+
 [maintenance]
-	repo = /home/nmuoh/Developer/_SketchUp/sbd-legionrepo-git
-[diff "jupyternotebook"]
-	command = git-nbdiffdriver diff
-[merge "jupyternotebook"]
-	driver = git-nbmergedriver merge %O %A %B %L %P
-	name = jupyter notebook merge driver
-[difftool "nbdime"]
-	cmd = git-nbdifftool diff \"$LOCAL\" \"$REMOTE\" \"$BASE\"
-[mergetool "nbdime"]
-	cmd = git-nbmergetool merge \"$BASE\" \"$LOCAL\" \"$REMOTE\" \"$MERGED\"
-[mergetool]
-	prompt = false
-[credential "https://github.com"]
-	helper = 
-	helper = !/usr/bin/gh auth git-credential
-[credential "https://gist.github.com"]
-	helper = 
-	helper = !/usr/bin/gh auth git-credential
-[gpg "ssh"]
-	program = ssh-keygen
+    repo = /home/nmuoh/Developer/_SketchUp/sbd-legionrepo-git
