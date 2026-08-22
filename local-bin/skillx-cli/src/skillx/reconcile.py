@@ -37,7 +37,7 @@ def parse_lockfile(content: str) -> tuple[Skill, ...]:
     return tuple(skills)
 
 
-def _listed_names(output: str) -> set[str]:
+def _listed_names(output: str) -> set[str] | None:
     try:
         document = json.loads(output)
     except json.JSONDecodeError:
@@ -48,10 +48,10 @@ def _listed_names(output: str) -> set[str]:
             match = re.match(r"^[│|]\s{2}(\S(?:.*\S)?)\s*$", line)
             if match:
                 names.add(match.group(1).casefold())
-        return names
+        return names if "Available Skills" in output else None
     raw_skills = document.get("skills", []) if isinstance(document, dict) else []
     if not isinstance(raw_skills, list):
-        return set()
+        return None
     return {
         item["name"].casefold()
         for item in raw_skills
@@ -67,16 +67,34 @@ def validate(lockfile: str, content: str, npx: Npx, operation: str = "check") ->
         command_result = npx.enumerate_source(source)
         diagnostics = f"{command_result.stdout}\n{command_result.stderr}"
         source_diagnostics[source] = diagnostics.strip()
-        if command_result.returncode != 0 and "No valid skills found." in diagnostics:
+        if command_result.classification == "confirmed-missing-source":
+            source_states[source] = ("confirmed-missing-source", set())
+        elif command_result.returncode != 0 and "No valid skills found." in diagnostics:
             source_states[source] = ("confirmed-invalid-source/no-valid-skills", set())
         elif command_result.returncode != 0:
             source_states[source] = ("indeterminate", set())
         else:
             names = _listed_names(command_result.stdout)
-            source_states[source] = ("enumerated", names) if names else ("indeterminate", set())
+            if names is None:
+                source_states[source] = ("indeterminate", set())
+            elif not names:
+                source_states[source] = (
+                    "confirmed-invalid-source/no-valid-skills",
+                    set(),
+                )
+            else:
+                source_states[source] = ("enumerated", names)
 
     def entry_for(skill: Skill) -> Entry:
         source_status, names = source_states[skill.source]
+        if source_status == "confirmed-missing-source":
+            return Entry(
+                skill.name,
+                skill.source,
+                source_status,
+                "authoritative provider response confirms the source is missing",
+                source_diagnostics[skill.source],
+            )
         if source_status == "confirmed-invalid-source/no-valid-skills":
             return Entry(
                 skill.name,
@@ -146,12 +164,28 @@ def parse_inventory(content: str) -> tuple[InstalledSkill, ...]:
             raise ConfigurationError(f"inventory entry {index} has an invalid shape")
         source = item.get("source")
         source_url = item.get("sourceUrl")
+        source_type = item.get("sourceType")
         if source is not None and not isinstance(source, str):
             raise ConfigurationError(f"inventory entry {index} has an invalid source")
         if source_url is not None and not isinstance(source_url, str):
             raise ConfigurationError(f"inventory entry {index} has an invalid source URL")
+        if source_type is not None and not isinstance(source_type, str):
+            raise ConfigurationError(f"inventory entry {index} has an invalid source type")
         installed.append(InstalledSkill(name, path, source, source_url))
     return tuple(installed)
+
+
+def _source_matches(desired: str, installed: InstalledSkill) -> bool:
+    if installed.source == desired or installed.source_url == desired:
+        return True
+    if installed.source is not None or installed.source_url is None:
+        return False
+    github_url = re.fullmatch(
+        r"(?:https://github\.com/|git@github\.com:)([^/]+/[^/]+?)(?:\.git)?/?",
+        installed.source_url,
+    )
+    github_shorthand = re.fullmatch(r"[^/]+/[^/]+", desired)
+    return bool(github_url and github_shorthand and github_url.group(1) == desired)
 
 
 def adoption_ledger(skills: tuple[Skill, ...], inventory: tuple[InstalledSkill, ...]) -> str:
@@ -163,7 +197,7 @@ def adoption_ledger(skills: tuple[Skill, ...], inventory: tuple[InstalledSkill, 
                 f"cannot adopt {skill.name!r}: expected one installed path, found {len(candidates)}"
             )
         installed = candidates[0]
-        if installed.source != skill.source:
+        if not _source_matches(skill.source, installed):
             raise ConfigurationError(
                 f"cannot adopt {skill.name!r}: installed source does not match desired source"
             )
@@ -256,7 +290,7 @@ def prune_candidates(
                     "installed name conflicts with ledger",
                 )
             )
-        if installed.source != record.source:
+        if not _source_matches(record.source, installed):
             refusals.append(
                 Entry(
                     record.skill,

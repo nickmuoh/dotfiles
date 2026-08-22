@@ -5,7 +5,7 @@ import json
 import unittest
 from pathlib import Path
 
-from skillx.adapters import CommandResult, Runtime
+from skillx.adapters import CommandResult, InstallRequest, Mutation, Runtime
 from skillx.main import main
 
 
@@ -13,6 +13,7 @@ class FakeFilesystem:
     def __init__(self, files: dict[str, str]) -> None:
         self.files = dict(files)
         self.backups: list[tuple[str, str]] = []
+        self.fail_writes: set[str] = set()
 
     def read_text(self, path: str) -> str:
         if path not in self.files:
@@ -20,6 +21,8 @@ class FakeFilesystem:
         return self.files[path]
 
     def write_atomic(self, path: str, content: str) -> None:
+        if path in self.fail_writes:
+            raise OSError(f"cannot write {path}")
         self.files[path] = content
 
     def copy(self, source: str, destination: str) -> None:
@@ -32,6 +35,9 @@ class FakeNpx:
         self.inventory_result = CommandResult(0, "[]", "")
         self.source_results: dict[str, CommandResult] = {}
         self.mutations: list[tuple[object, ...]] = []
+        self.install_result = CommandResult(0, "", "")
+        self.remove_result = CommandResult(0, "", "")
+        self.transaction_events: list[str] = []
 
     def inventory(self) -> CommandResult:
         return self.inventory_result
@@ -39,13 +45,25 @@ class FakeNpx:
     def enumerate_source(self, source: str) -> CommandResult:
         return self.source_results[source]
 
-    def install(self, source: str, skills: tuple[str, ...], agents: tuple[str, ...]) -> CommandResult:
-        self.mutations.append(("install", source, skills, agents))
-        return CommandResult(0, "", "")
+    def install_transaction(self, requests: tuple[InstallRequest, ...]) -> Mutation:
+        for request in requests:
+            self.mutations.append(
+                ("install", request.source, request.skills, request.agents)
+            )
+        return Mutation(
+            self.install_result,
+            commit=lambda: self.transaction_events.append("install-commit"),
+            rollback=lambda: self.transaction_events.append("install-rollback"),
+        )
 
-    def remove(self, skill: str) -> CommandResult:
-        self.mutations.append(("remove", skill))
-        return CommandResult(0, "", "")
+    def remove_transaction(self, skills: tuple[str, ...]) -> Mutation:
+        for skill in skills:
+            self.mutations.append(("remove", skill))
+        return Mutation(
+            self.remove_result,
+            commit=lambda: self.transaction_events.append("remove-commit"),
+            rollback=lambda: self.transaction_events.append("remove-rollback"),
+        )
 
 
 class SkillxCommandTests(unittest.TestCase):
@@ -541,13 +559,7 @@ class SkillxCommandTests(unittest.TestCase):
             0, '{"skills":[{"name":"one"}]}', ""
         )
 
-        def fail_install(
-            source: str, skills: tuple[str, ...], agents: tuple[str, ...]
-        ) -> CommandResult:
-            npx.mutations.append(("install", source, skills, agents))
-            return CommandResult(1, "", "disk full")
-
-        npx.install = fail_install  # type: ignore[method-assign]
+        npx.install_result = CommandResult(1, "", "disk full")
 
         exit_code = main(
             ["sync", "--lockfile", "/config/lock.json", "--json"], runtime=runtime
@@ -556,6 +568,106 @@ class SkillxCommandTests(unittest.TestCase):
         self.assertEqual(exit_code, 2)
         self.assertIn("disk full", stderr.getvalue())
         self.assertEqual(json.loads(stdout.getvalue())["result"], "failed")
+        self.assertEqual(npx.transaction_events, ["install-rollback"])
+
+    def test_successful_empty_enumeration_is_confirmed_invalid_source(self) -> None:
+        runtime, _, npx, stdout, _ = self.runtime(
+            {"skills": {"bad": {"source": "owner/empty"}}}
+        )
+        npx.source_results["owner/empty"] = CommandResult(
+            0, "◇  Available Skills\n└  Use --skill <name> to install specific skills\n", ""
+        )
+
+        exit_code = main(
+            ["check", "--lockfile", "/config/lock.json", "--json"], runtime=runtime
+        )
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(
+            json.loads(stdout.getvalue())["entries"][0]["status"],
+            "confirmed-invalid-source/no-valid-skills",
+        )
+
+    def test_json_usage_error_still_emits_one_json_document(self) -> None:
+        runtime, _, _, stdout, stderr = self.runtime({"skills": {}})
+
+        exit_code = main(
+            ["check", "--lockfile", "/config/lock.json", "--json", "--bad-option"],
+            runtime=runtime,
+        )
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("unrecognized arguments", stderr.getvalue())
+        self.assertEqual(json.loads(stdout.getvalue())["result"], "failed")
+
+    def test_authoritative_missing_source_classification_is_repairable(self) -> None:
+        runtime, _, npx, stdout, _ = self.runtime(
+            {"skills": {"gone": {"source": "provider/gone"}}}
+        )
+        npx.source_results["provider/gone"] = CommandResult(
+            1, "", "authoritative provider response", "confirmed-missing-source"
+        )
+
+        exit_code = main(
+            ["repair", "--lockfile", "/config/lock.json", "--dry-run", "--json"],
+            runtime=runtime,
+        )
+
+        self.assertEqual(exit_code, 1)
+        output = json.loads(stdout.getvalue())
+        self.assertEqual(output["entries"][0]["status"], "confirmed-missing-source")
+        self.assertEqual(output["summary"]["planned_changes"], 1)
+
+    def test_prune_rolls_back_removal_when_ledger_commit_fails(self) -> None:
+        runtime, filesystem, npx, stdout, stderr = self.runtime({"skills": {}})
+        filesystem.files["/config/managed.json"] = json.dumps(
+            {
+                "schema_version": 1,
+                "managed": [
+                    {
+                        "skill": "stale",
+                        "source": "owner/source",
+                        "path": "/agents/skills/stale",
+                    }
+                ],
+            }
+        )
+        filesystem.fail_writes.add("/config/managed.json")
+        npx.inventory_result = CommandResult(
+            0,
+            json.dumps(
+                [
+                    {
+                        "name": "stale",
+                        "path": "/agents/skills/stale",
+                        "scope": "global",
+                        "agents": [],
+                        "source": "owner/source",
+                        "sourceUrl": None,
+                        "sourceType": "github",
+                    }
+                ]
+            ),
+            "",
+        )
+
+        exit_code = main(
+            [
+                "prune",
+                "--lockfile",
+                "/config/lock.json",
+                "--ledger",
+                "/config/managed.json",
+                "--yes",
+                "--json",
+            ],
+            runtime=runtime,
+        )
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("cannot write", stderr.getvalue())
+        self.assertEqual(json.loads(stdout.getvalue())["result"], "failed")
+        self.assertEqual(npx.transaction_events, ["remove-rollback"])
 
 
 if __name__ == "__main__":

@@ -7,4 +7,3 @@ dependencies = []
 [tool.pyright]
 pythonVersion = "3.12"
 include = ["src", "tests"]
-

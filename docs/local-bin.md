@@ -12,10 +12,10 @@ The Stow-facing `skillx` executable loads its implementation from the ignored `s
 Commands:
 
 - `skillx check` validates every declared source and skill without mutation.
-- `skillx sync` validates all desired entries before installing or updating any of them. `--dry-run` performs the full validation pass without invoking a mutating `npx` command. `--agent <names...>` targets named agents in addition to global installation.
+- `skillx sync` validates all desired entries before installing or updating any of them. Before live mutation, it preflights the complete install batch in disposable homes and snapshots canonical skills plus the upstream lock for rollback. `--dry-run` performs the full validation pass without invoking a mutating `npx` command. `--agent <names...>` targets named agents in addition to global installation.
 - `skillx repair` previews confirmed-invalid lock entries. `--yes` backs up the lockfile and atomically removes only those entries; indeterminate failures are preserved.
 - `skillx adopt --from-lock` previews explicit custody transfer for installed desired skills. `--yes` writes exact skill, source, and installed-path records to the ownership ledger. Ordinary sync never adopts existing installations.
-- `skillx prune` previews ledger-backed installations absent from desired state. `--yes` removes them only when each candidate has one unambiguous exact-path inventory match. Any duplicate name, path mismatch, source conflict, or malformed prerequisite blocks the complete prune.
+- `skillx prune` previews ledger-backed installations absent from desired state. `--yes` removes them only when each candidate has one unambiguous exact-path inventory match. The removal batch retains rollback state until the ownership-ledger update commits. Any duplicate name, path mismatch, source conflict, or malformed prerequisite blocks the complete prune.
 
 Destructive commands support `--dry-run`. `--json` writes one schema-versioned document to stdout; diagnostics remain on stderr, and `--verbose` includes captured `npx` output there. Exit `0` means success, exit `1` means drift or a safely blocked reconciliation, and exit `2` means reliable execution was prevented by usage, configuration, dependency, or runtime failure.
 

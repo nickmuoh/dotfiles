@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -9,7 +10,7 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Mapping, Protocol, TextIO
+from typing import Callable, Literal, Mapping, Protocol, TextIO
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,38 @@ class CommandResult:
     returncode: int
     stdout: str
     stderr: str
+    classification: Literal["confirmed-missing-source"] | None = None
+
+
+@dataclass(frozen=True)
+class InstallRequest:
+    source: str
+    skills: tuple[str, ...]
+    agents: tuple[str, ...]
+
+
+class Mutation:
+    def __init__(
+        self,
+        result: CommandResult,
+        *,
+        commit: Callable[[], None] | None = None,
+        rollback: Callable[[], None] | None = None,
+    ) -> None:
+        self.result = result
+        self._commit = commit or (lambda: None)
+        self._rollback = rollback or (lambda: None)
+        self._finished = False
+
+    def commit(self) -> None:
+        if not self._finished:
+            self._commit()
+            self._finished = True
+
+    def rollback(self) -> None:
+        if not self._finished:
+            self._rollback()
+            self._finished = True
 
 
 class Filesystem(Protocol):
@@ -32,11 +65,9 @@ class Npx(Protocol):
 
     def enumerate_source(self, source: str) -> CommandResult: ...
 
-    def install(
-        self, source: str, skills: tuple[str, ...], agents: tuple[str, ...]
-    ) -> CommandResult: ...
+    def install_transaction(self, requests: tuple[InstallRequest, ...]) -> Mutation: ...
 
-    def remove(self, skill: str) -> CommandResult: ...
+    def remove_transaction(self, skills: tuple[str, ...]) -> Mutation: ...
 
 
 @dataclass
@@ -126,17 +157,116 @@ class SubprocessNpx:
                 ["npx", "skills", "add", source, "--list"], environment=environment
             )
 
-    def install(
-        self, source: str, skills: tuple[str, ...], agents: tuple[str, ...]
-    ) -> CommandResult:
+    @staticmethod
+    def _install_arguments(request: InstallRequest) -> list[str]:
+        source, skills, agents = request.source, request.skills, request.agents
         arguments = ["npx", "skills", "add", source, "-g", "-y"]
         if agents:
             arguments.extend(["--agent", *agents])
         arguments.extend(["--skill", *skills])
-        return self._run(arguments)
+        return arguments
 
-    def remove(self, skill: str) -> CommandResult:
-        return self._run(["npx", "skills", "remove", skill, "-g", "-y"])
+    @staticmethod
+    def _sanitize_name(name: str) -> str:
+        sanitized = re.sub(r"[^a-z0-9._]+", "-", name.lower())
+        sanitized = re.sub(r"^[.\-]+|[.\-]+$", "", sanitized)
+        return sanitized[:255] or "unnamed-skill"
+
+    def _snapshot(self, skills: tuple[str, ...]) -> tuple[tempfile.TemporaryDirectory[str], dict[str, Path | None], Path | None]:
+        temporary = tempfile.TemporaryDirectory(prefix="skillx-rollback-")
+        snapshot_root = Path(temporary.name)
+        home = Path(self.environment.get("HOME", str(Path.home()))).expanduser()
+        snapshots: dict[str, Path | None] = {}
+        for skill in skills:
+            live_path = home / ".agents" / "skills" / self._sanitize_name(skill)
+            if not live_path.exists() and not live_path.is_symlink():
+                snapshots[skill] = None
+                continue
+            backup = snapshot_root / "skills" / self._sanitize_name(skill)
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            if live_path.is_symlink():
+                backup.symlink_to(os.readlink(live_path))
+            else:
+                shutil.copytree(live_path, backup, symlinks=True)
+            snapshots[skill] = backup
+        live_lock = home / ".agents" / ".skill-lock.json"
+        lock_backup: Path | None = None
+        if live_lock.exists():
+            lock_backup = snapshot_root / ".skill-lock.json"
+            shutil.copy2(live_lock, lock_backup)
+        return temporary, snapshots, lock_backup
+
+    def _restore(
+        self,
+        skills: tuple[str, ...],
+        snapshots: dict[str, Path | None],
+        lock_backup: Path | None,
+    ) -> None:
+        if skills:
+            self._run(["npx", "skills", "remove", *skills, "-g", "-y"])
+        for skill, backup in snapshots.items():
+            if backup is None:
+                continue
+            self._run(["npx", "skills", "add", str(backup), "-g", "-y", "--skill", skill])
+        home = Path(self.environment.get("HOME", str(Path.home()))).expanduser()
+        live_lock = home / ".agents" / ".skill-lock.json"
+        if lock_backup is None:
+            live_lock.unlink(missing_ok=True)
+        else:
+            live_lock.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(lock_backup, live_lock)
+
+    def install_transaction(self, requests: tuple[InstallRequest, ...]) -> Mutation:
+        all_skills = tuple(skill for request in requests for skill in request.skills)
+        with tempfile.TemporaryDirectory(prefix="skillx-install-stage-") as staging_root:
+            for index, request in enumerate(requests):
+                staging_home = Path(staging_root) / str(index)
+                staging_home.mkdir()
+                environment = dict(self.environment)
+                environment.update(
+                    {
+                        "HOME": str(staging_home),
+                        "XDG_CONFIG_HOME": str(staging_home / ".config"),
+                        "XDG_CACHE_HOME": str(staging_home / ".cache"),
+                        "npm_config_cache": str(staging_home / ".npm"),
+                        "NO_COLOR": "1",
+                        "CI": "1",
+                    }
+                )
+                staged = self._run(self._install_arguments(request), environment=environment)
+                if staged.returncode != 0:
+                    return Mutation(staged)
+
+        temporary, snapshots, lock_backup = self._snapshot(all_skills)
+        result = CommandResult(0, "", "")
+        for request in requests:
+            result = self._run(self._install_arguments(request))
+            if result.returncode != 0:
+                break
+
+        def rollback() -> None:
+            self._restore(all_skills, snapshots, lock_backup)
+            temporary.cleanup()
+
+        return Mutation(
+            result,
+            commit=temporary.cleanup,
+            rollback=rollback,
+        )
+
+    def remove_transaction(self, skills: tuple[str, ...]) -> Mutation:
+        temporary, snapshots, lock_backup = self._snapshot(skills)
+        result = self._run(["npx", "skills", "remove", *skills, "-g", "-y"])
+
+        def rollback() -> None:
+            self._restore(skills, snapshots, lock_backup)
+            temporary.cleanup()
+
+        return Mutation(
+            result,
+            commit=temporary.cleanup,
+            rollback=rollback,
+        )
 
 
 def default_runtime() -> Runtime:

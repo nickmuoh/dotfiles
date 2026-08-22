@@ -111,7 +111,6 @@ class ArgumentParser(BaseArgParser):
             return wrapper
 
         return decorator
-
     @copy_signature(BaseArgParser.add_argument)
     def argument(self, *args, **kwargs):
         return args, kwargs
@@ -126,4 +125,3 @@ class ArgumentParser(BaseArgParser):
             return func
 
         return decorator
-

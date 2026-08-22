@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import Sequence
 
-from .adapters import Runtime, default_runtime
+from .adapters import InstallRequest, Runtime, default_runtime
 from .cli import ArgumentParser
 from .models import Entry, Report
 from .reconcile import (
@@ -128,18 +130,26 @@ def sync(
         skills_by_source: dict[str, list[str]] = {}
         for entry in report.entries:
             skills_by_source.setdefault(entry.source, []).append(entry.skill)
-        for source, skills in skills_by_source.items():
-            mutation = runtime.npx.install(source, tuple(skills), tuple(agent))
-            if mutation.returncode != 0:
-                diagnostic = mutation.stderr.strip() or mutation.stdout.strip()
-                return _failure(
-                    "sync",
-                    lockfile,
-                    f"install failed for {source}: {diagnostic}",
-                    runtime,
-                    json_output,
-                    verbose,
-                )
+        requests = tuple(
+            InstallRequest(source, tuple(skills), tuple(agent))
+            for source, skills in skills_by_source.items()
+        )
+        try:
+            mutation = runtime.npx.install_transaction(requests)
+        except OSError as error:
+            return _failure("sync", lockfile, str(error), runtime, json_output, verbose)
+        if mutation.result.returncode != 0:
+            mutation.rollback()
+            diagnostic = mutation.result.stderr.strip() or mutation.result.stdout.strip()
+            return _failure(
+                "sync",
+                lockfile,
+                f"install failed: {diagnostic}",
+                runtime,
+                json_output,
+                verbose,
+            )
+        mutation.commit()
     return _emit(synced, runtime, json_output, verbose)
 
 
@@ -170,7 +180,11 @@ def repair(
         entry.skill
         for entry in report.entries
         if entry.status
-        in {"confirmed-missing-skill", "confirmed-invalid-source/no-valid-skills"}
+        in {
+            "confirmed-missing-source",
+            "confirmed-missing-skill",
+            "confirmed-invalid-source/no-valid-skills",
+        }
     }
     if not repairable:
         return _emit(report, runtime, json_output, verbose)
@@ -321,22 +335,29 @@ def prune(
     )
     result = "ok" if not candidates else "planned"
     if candidates and yes and not dry_run:
-        for record in candidates:
-            mutation = runtime.npx.remove(record.skill)
-            if mutation.returncode != 0:
-                diagnostic = mutation.stderr.strip() or mutation.stdout.strip()
-                return _failure(
-                    "prune",
-                    lockfile,
-                    f"removal failed for {record.skill}: {diagnostic}",
-                    runtime,
-                    json_output,
-                    verbose,
-                )
+        try:
+            mutation = runtime.npx.remove_transaction(
+                tuple(record.skill for record in candidates)
+            )
+        except OSError as error:
+            return _failure("prune", lockfile, str(error), runtime, json_output, verbose)
+        if mutation.result.returncode != 0:
+            mutation.rollback()
+            diagnostic = mutation.result.stderr.strip() or mutation.result.stdout.strip()
+            return _failure(
+                "prune",
+                lockfile,
+                f"removal failed: {diagnostic}",
+                runtime,
+                json_output,
+                verbose,
+            )
         try:
             runtime.filesystem.write_atomic(ledger, ledger_without(managed, candidates))
         except OSError as error:
+            mutation.rollback()
             return _failure("prune", lockfile, str(error), runtime, json_output, verbose)
+        mutation.commit()
         result = "changed"
     pruned = Report("prune", result, lockfile, entries, planned_changes=len(candidates))
     return _emit(pruned, runtime, json_output, verbose)
@@ -344,10 +365,33 @@ def prune(
 
 def main(argv: Sequence[str] | None = None, *, runtime: Runtime | None = None) -> int:
     runtime = default_runtime() if runtime is None else runtime
+    arguments = list(sys.argv[1:] if argv is None else argv)
     try:
-        args = cli.parse_args(argv)
+        with redirect_stdout(runtime.stdout), redirect_stderr(runtime.stderr):
+            args = cli.parse_args(arguments)
     except SystemExit as error:
-        return 0 if error.code is None else int(error.code)
+        exit_code = 0 if error.code is None else int(error.code)
+        if exit_code != 0 and "--json" in arguments:
+            operation = arguments[0] if arguments and arguments[0] in {
+                "check",
+                "sync",
+                "repair",
+                "adopt",
+                "prune",
+            } else "unknown"
+            lockfile = DEFAULT_LOCKFILE
+            for index, argument in enumerate(arguments):
+                if argument == "--lockfile" and index + 1 < len(arguments):
+                    lockfile = arguments[index + 1]
+                elif argument.startswith("--lockfile="):
+                    lockfile = argument.partition("=")[2]
+            _emit(
+                Report(operation, "failed", lockfile, ()),
+                runtime,
+                True,
+                "--verbose" in arguments,
+            )
+        return exit_code
     if args.command is None:
         cli.print_help(file=runtime.stdout)
         return 0
