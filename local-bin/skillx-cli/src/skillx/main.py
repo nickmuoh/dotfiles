@@ -5,11 +5,11 @@ import os
 import sys
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, cast
 
 from .adapters import InstallRequest, Runtime, default_runtime
 from .cli import ArgumentParser
-from .models import Entry, Report
+from .models import Entry, Operation, Report, Result
 from .reconcile import (
     ConfigurationError,
     OwnershipError,
@@ -30,6 +30,23 @@ DEFAULT_LEDGER = str(Path.home() / ".agents" / ".skillx-managed.json")
 
 cli = ArgumentParser(prog="skillx")
 cli.enable_subcommands()
+
+
+def _common_arguments(
+    *, ledger: bool = False, dry_run: bool = False, yes: bool = False
+) -> tuple[object, ...]:
+    arguments: list[object] = [
+        cli.argument("--lockfile", default=DEFAULT_LOCKFILE),
+        cli.argument("--json", action="store_true", dest="json_output"),
+        cli.argument("--verbose", action="store_true"),
+    ]
+    if ledger:
+        arguments.insert(1, cli.argument("--ledger", default=DEFAULT_LEDGER))
+    if dry_run:
+        arguments.append(cli.argument("--dry-run", action="store_true"))
+    if yes:
+        arguments.append(cli.argument("--yes", action="store_true"))
+    return tuple(arguments)
 
 
 def _emit(report: Report, runtime: Runtime, json_output: bool, verbose: bool) -> int:
@@ -53,7 +70,7 @@ def _emit(report: Report, runtime: Runtime, json_output: bool, verbose: bool) ->
 
 
 def _failure(
-    operation: str,
+    operation: Operation,
     lockfile: str,
     message: str,
     runtime: Runtime,
@@ -64,7 +81,9 @@ def _failure(
     return _emit(Report(operation, "failed", lockfile, ()), runtime, json_output, verbose)
 
 
-def _validated(operation: str, lockfile: str, runtime: Runtime) -> tuple[str, Report] | str:
+def _validated(
+    operation: Operation, lockfile: str, runtime: Runtime
+) -> tuple[str, Report] | str:
     try:
         content = runtime.filesystem.read_text(lockfile)
         return content, validate(lockfile, content, runtime.npx, operation)
@@ -73,9 +92,7 @@ def _validated(operation: str, lockfile: str, runtime: Runtime) -> tuple[str, Re
 
 
 @cli.command(
-    cli.argument("--lockfile", default=DEFAULT_LOCKFILE),
-    cli.argument("--json", action="store_true", dest="json_output"),
-    cli.argument("--verbose", action="store_true"),
+    *_common_arguments(),
     help="validate desired and remote state without mutation",
 )
 def check(
@@ -95,10 +112,7 @@ def check(
 
 
 @cli.command(
-    cli.argument("--lockfile", default=DEFAULT_LOCKFILE),
-    cli.argument("--json", action="store_true", dest="json_output"),
-    cli.argument("--verbose", action="store_true"),
-    cli.argument("--dry-run", action="store_true"),
+    *_common_arguments(dry_run=True),
     cli.argument("--agent", action="extend", nargs="+", default=[]),
     help="validate and install or update desired skills",
 )
@@ -139,8 +153,11 @@ def sync(
         except OSError as error:
             return _failure("sync", lockfile, str(error), runtime, json_output, verbose)
         if mutation.result.returncode != 0:
-            mutation.rollback()
             diagnostic = mutation.result.stderr.strip() or mutation.result.stdout.strip()
+            try:
+                mutation.rollback()
+            except OSError as rollback_error:
+                diagnostic = f"{diagnostic}; {rollback_error}"
             return _failure(
                 "sync",
                 lockfile,
@@ -154,11 +171,7 @@ def sync(
 
 
 @cli.command(
-    cli.argument("--lockfile", default=DEFAULT_LOCKFILE),
-    cli.argument("--json", action="store_true", dest="json_output"),
-    cli.argument("--verbose", action="store_true"),
-    cli.argument("--dry-run", action="store_true"),
-    cli.argument("--yes", action="store_true"),
+    *_common_arguments(dry_run=True, yes=True),
     help="remove confirmed-invalid desired entries",
 )
 def repair(
@@ -188,7 +201,7 @@ def repair(
     }
     if not repairable:
         return _emit(report, runtime, json_output, verbose)
-    result = "planned"
+    result: Result = "planned"
     if yes and not dry_run:
         try:
             runtime.filesystem.copy(lockfile, f"{lockfile}.{runtime.now()}.bak")
@@ -208,12 +221,7 @@ def repair(
 
 @cli.command(
     cli.argument("--from-lock", action="store_true", required=True),
-    cli.argument("--lockfile", default=DEFAULT_LOCKFILE),
-    cli.argument("--ledger", default=DEFAULT_LEDGER),
-    cli.argument("--json", action="store_true", dest="json_output"),
-    cli.argument("--verbose", action="store_true"),
-    cli.argument("--dry-run", action="store_true"),
-    cli.argument("--yes", action="store_true"),
+    *_common_arguments(ledger=True, dry_run=True, yes=True),
     help="explicitly transfer custody of installed desired skills",
 )
 def adopt(
@@ -261,7 +269,7 @@ def adopt(
             json_output,
             verbose,
         )
-    result = "planned"
+    result: Result = "planned"
     if yes and not dry_run:
         try:
             runtime.filesystem.write_atomic(ledger, ledger_content)
@@ -275,12 +283,7 @@ def adopt(
 
 
 @cli.command(
-    cli.argument("--lockfile", default=DEFAULT_LOCKFILE),
-    cli.argument("--ledger", default=DEFAULT_LEDGER),
-    cli.argument("--json", action="store_true", dest="json_output"),
-    cli.argument("--verbose", action="store_true"),
-    cli.argument("--dry-run", action="store_true"),
-    cli.argument("--yes", action="store_true"),
+    *_common_arguments(ledger=True, dry_run=True, yes=True),
     help="remove unambiguously owned skills absent from desired state",
 )
 def prune(
@@ -333,7 +336,7 @@ def prune(
         )
         for record in candidates
     )
-    result = "ok" if not candidates else "planned"
+    result: Result = "ok" if not candidates else "planned"
     if candidates and yes and not dry_run:
         try:
             mutation = runtime.npx.remove_transaction(
@@ -342,8 +345,11 @@ def prune(
         except OSError as error:
             return _failure("prune", lockfile, str(error), runtime, json_output, verbose)
         if mutation.result.returncode != 0:
-            mutation.rollback()
             diagnostic = mutation.result.stderr.strip() or mutation.result.stdout.strip()
+            try:
+                mutation.rollback()
+            except OSError as rollback_error:
+                diagnostic = f"{diagnostic}; {rollback_error}"
             return _failure(
                 "prune",
                 lockfile,
@@ -355,8 +361,12 @@ def prune(
         try:
             runtime.filesystem.write_atomic(ledger, ledger_without(managed, candidates))
         except OSError as error:
-            mutation.rollback()
-            return _failure("prune", lockfile, str(error), runtime, json_output, verbose)
+            message = str(error)
+            try:
+                mutation.rollback()
+            except OSError as rollback_error:
+                message = f"{message}; {rollback_error}"
+            return _failure("prune", lockfile, message, runtime, json_output, verbose)
         mutation.commit()
         result = "changed"
     pruned = Report("prune", result, lockfile, entries, planned_changes=len(candidates))
@@ -386,7 +396,7 @@ def main(argv: Sequence[str] | None = None, *, runtime: Runtime | None = None) -
                 elif argument.startswith("--lockfile="):
                     lockfile = argument.partition("=")[2]
             _emit(
-                Report(operation, "failed", lockfile, ()),
+                Report(cast(Operation, operation), "failed", lockfile, ()),
                 runtime,
                 True,
                 "--verbose" in arguments,

@@ -203,18 +203,32 @@ class SubprocessNpx:
         lock_backup: Path | None,
     ) -> None:
         if skills:
-            self._run(["npx", "skills", "remove", *skills, "-g", "-y"])
+            removed = self._run(["npx", "skills", "remove", *skills, "-g", "-y"])
+            if removed.returncode != 0:
+                raise OSError(
+                    "rollback cleanup failed: "
+                    + (removed.stderr.strip() or removed.stdout.strip())
+                )
         for skill, backup in snapshots.items():
             if backup is None:
                 continue
-            self._run(["npx", "skills", "add", str(backup), "-g", "-y", "--skill", skill])
+            restored = self._run(
+                ["npx", "skills", "add", str(backup), "-g", "-y", "--skill", skill]
+            )
+            if restored.returncode != 0:
+                raise OSError(
+                    f"rollback restore failed for {skill}: "
+                    + (restored.stderr.strip() or restored.stdout.strip())
+                )
         home = Path(self.environment.get("HOME", str(Path.home()))).expanduser()
         live_lock = home / ".agents" / ".skill-lock.json"
         if lock_backup is None:
             live_lock.unlink(missing_ok=True)
         else:
             live_lock.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(lock_backup, live_lock)
+            temporary_lock = live_lock.with_name(f".{live_lock.name}.skillx-rollback")
+            shutil.copy2(lock_backup, temporary_lock)
+            os.replace(temporary_lock, live_lock)
 
     def install_transaction(self, requests: tuple[InstallRequest, ...]) -> Mutation:
         all_skills = tuple(skill for request in requests for skill in request.skills)

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Literal
 
 from .adapters import Npx
-from .models import Entry, InstalledSkill, ManagedSkill, Report, Skill
+from .models import Entry, InstalledSkill, ManagedSkill, Operation, Report, Result, Skill, Status
 
 
 class ConfigurationError(ValueError):
@@ -59,9 +60,11 @@ def _listed_names(output: str) -> set[str] | None:
     }
 
 
-def validate(lockfile: str, content: str, npx: Npx, operation: str = "check") -> Report:
+def validate(
+    lockfile: str, content: str, npx: Npx, operation: Operation = "check"
+) -> Report:
     skills = parse_lockfile(content)
-    source_states: dict[str, tuple[str, set[str]]] = {}
+    source_states: dict[str, tuple[Status | Literal["enumerated"], set[str]]] = {}
     source_diagnostics: dict[str, str] = {}
     for source in dict.fromkeys(skill.source for skill in skills):
         command_result = npx.enumerate_source(source)
@@ -123,7 +126,7 @@ def validate(lockfile: str, content: str, npx: Npx, operation: str = "check") ->
     entries = tuple(
         entry_for(skill) for skill in skills
     )
-    result = "ok" if all(entry.status == "valid" for entry in entries) else "blocked"
+    result: Result = "ok" if all(entry.status == "valid" for entry in entries) else "blocked"
     return Report(operation, result, lockfile, entries)
 
 

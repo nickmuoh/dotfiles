@@ -1,6 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
+
+Operation = Literal["check", "sync", "repair", "adopt", "prune", "unknown"]
+Result = Literal["ok", "planned", "changed", "blocked", "failed"]
+Status = Literal[
+    "valid",
+    "indeterminate",
+    "confirmed-missing-source",
+    "confirmed-missing-skill",
+    "confirmed-invalid-source/no-valid-skills",
+    "ambiguous-ownership",
+    "prunable",
+]
 
 
 @dataclass(frozen=True)
@@ -28,7 +41,7 @@ class ManagedSkill:
 class Entry:
     skill: str
     source: str
-    status: str
+    status: Status
     message: str
     diagnostic: str = ""
 
@@ -43,8 +56,8 @@ class Entry:
 
 @dataclass(frozen=True)
 class Report:
-    operation: str
-    result: str
+    operation: Operation
+    result: Result
     lockfile: str
     entries: tuple[Entry, ...]
     planned_changes: int = 0
