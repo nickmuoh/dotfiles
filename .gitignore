@@ -34,6 +34,9 @@ auth.json
 
 # Nodejs
 **/node_modules/
+
+# Python
+**/__pycache__/
 .DS_Store
 
 # Generated Ollama custom-model artifacts
