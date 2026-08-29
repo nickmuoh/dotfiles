@@ -14,6 +14,9 @@ export type JsonObject = Record<string, unknown>;
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 export interface PiRegistration {
   registerProvider(name: string, config: JsonObject): void;
+  // Extension API also includes registerCommand and registerTool, but we use any casting
+  registerCommand?: (name: string, options: any) => void;
+  registerTool?: (tool: any) => void;
 }
 export interface StartupDependencies {
   getAgentDir: () => string | Promise<string>;
@@ -30,7 +33,7 @@ function isObject(value: unknown): value is JsonObject {
 
 function modelNames(payload: unknown): string[] {
   if (!isObject(payload)) return [];
-  const models = Array.isArray(payload.data) ? payload.data : payload.models;
+  const models = Array.isArray((payload as any).data) ? (payload as any).data : (payload as any).models;
   if (!Array.isArray(models)) return [];
   return models
     .map((model) => typeof model === "string" ? model : isObject(model) ? model.id ?? model.name : undefined)
@@ -61,39 +64,29 @@ function modelForRegistration(model: JsonObject, providerCompat?: JsonObject): J
   if (typeof id !== "string" || id.length === 0) {
     throw new Error("Ollama model entries must have a non-empty id");
   }
-
   const modelCompat = isObject(model.compat) ? model.compat : undefined;
-  const compat = providerCompat || modelCompat
-    ? { ...providerCompat, ...modelCompat }
-    : undefined;
-
+  const compat = providerCompat || modelCompat ? { ...providerCompat, ...modelCompat } : undefined;
   return {
     ...model,
     id,
     name: typeof model.name === "string" ? model.name : id,
     reasoning: typeof model.reasoning === "boolean" ? model.reasoning : false,
     input: Array.isArray(model.input) ? model.input : ["text"],
-    cost: isObject(model.cost)
-      ? model.cost
-      : { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    cost: isObject(model.cost) ? model.cost : { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: typeof model.contextWindow === "number" ? model.contextWindow : 128_000,
     maxTokens: typeof model.maxTokens === "number" ? model.maxTokens : 16_384,
     ...(compat ? { compat } : {}),
   };
 }
 
-/** Return a complete legacy provider config accepted by registerProvider. */
 export function providerForRegistration(provider: JsonObject): JsonObject {
   const registration: JsonObject = {};
   for (const key of ["name", "baseUrl", "apiKey", "api", "headers", "authHeader", "oauth", "streamSimple", "refreshModels"]) {
-    if (key in provider) registration[key] = provider[key];
+    if (key in provider) registration[key] = (provider as any)[key];
   }
-
   const providerCompat = isObject(provider.compat) ? provider.compat : undefined;
   registration.models = Array.isArray(provider.models)
-    ? provider.models
-      .filter(isObject)
-      .map((model) => modelForRegistration(model, providerCompat))
+    ? provider.models.filter(isObject).map((model) => modelForRegistration(model, providerCompat))
     : [];
   return registration;
 }
@@ -101,16 +94,13 @@ export function providerForRegistration(provider: JsonObject): JsonObject {
 function requestHeaders(provider: JsonObject): Record<string, string> | undefined {
   const headers: Record<string, string> = {};
   if (isObject(provider.headers)) {
-    for (const [key, value] of Object.entries(provider.headers)) {
-      if (typeof value === "string") headers[key] = value;
+    for (const [k, v] of Object.entries(provider.headers)) {
+      if (typeof v === "string") headers[k] = v;
     }
   }
   const apiKey = provider.apiKey;
-  const isLiteralApiKey = typeof apiKey === "string" &&
-    apiKey.trim().length > 0 &&
-    !apiKey.startsWith("!") &&
-    !apiKey.includes("$");
-  if (provider.authHeader === true && isLiteralApiKey) {
+  const isLiteral = typeof apiKey === "string" && apiKey.trim().length > 0 && !apiKey.startsWith("!") && !apiKey.includes("$");
+  if (provider.authHeader === true && isLiteral) {
     headers.Authorization = `Bearer ${apiKey}`;
   }
   return Object.keys(headers).length > 0 ? headers : undefined;
@@ -121,7 +111,6 @@ function boundedTimeout(timeoutMs: number): number {
   return Math.min(MAX_TIMEOUT_MS, Math.max(1, Math.floor(timeoutMs)));
 }
 
-/** Rewrite the resolved Stow target, retaining all unrelated configuration. */
 export async function writeModelsConfig(
   modelsPath: string,
   config: JsonObject,
@@ -131,7 +120,6 @@ export async function writeModelsConfig(
   const original = await readFile(target, "utf8");
   const next = `${JSON.stringify(buildModelsConfig(config, names), null, 2)}\n`;
   if (original === next) return { changed: false, path: target };
-
   const temporaryFile = join(dirname(target), `.models.json.${randomUUID()}.tmp`);
   try {
     const mode = (await stat(target)).mode & 0o777;
@@ -187,6 +175,92 @@ export async function startPiOllamaModels(pi: PiRegistration, deps: StartupDepen
   const providers = isObject(config.providers) ? config.providers : undefined;
   const provider = providers?.ollama;
   if (isObject(provider)) pi.registerProvider("ollama", providerForRegistration(provider));
+
+  // Register slash command for manual use
+  pi.registerCommand?.("ollama-status", {
+    description: "Show Ollama connection status and model sync",
+    handler: async (_args: unknown, ctx: any) => {
+      const modelsPath = join(await (await import("@earendil-works/pi-coding-agent")).getAgentDir(), "models.json");
+      try {
+        const { config, names, changed } = await discoverAndSync(modelsPath, undefined, undefined);
+        const prov = (config as any)?.providers?.ollama;
+        const serverCount = names.length;
+        const registeredCount = Array.isArray(prov?.models) ? prov.models.length : 0;
+        const baseUrl = prov?.baseUrl ?? "(unknown)";
+        const syncMsg = changed ? "⚠️ Mismatch (out of sync)" : "✅ Synced";
+        const statusText = `✅ Ollama Online | Server: ${serverCount} | Registered: ${registeredCount} | ${syncMsg}\nBase URL: ${baseUrl}`;
+ctx.ui.notify(statusText, "info");
+return undefined;
+      } catch (e) {
+        return `❌ Ollama Offline: ${String(e)}`;
+      }
+    },
+  });
+
+  // Register tool for LLM access (status)
+  pi.registerTool?.({
+    name: "ollama_status",
+    label: "Ollama Status",
+    description: "Return Ollama connection and sync status",
+    parameters: {},
+    async execute(_toolCallId: any, _params: any, _signal: any, _onUpdate: any, _ctx: any) {
+      const modelsPath = join(await (await import("@earendil-works/pi-coding-agent")).getAgentDir(), "models.json");
+      try {
+        const { config, names, changed } = await discoverAndSync(modelsPath, undefined, undefined);
+        const prov = (config as any)?.providers?.ollama;
+        const serverCount = names.length;
+        const registeredCount = Array.isArray(prov?.models) ? prov.models.length : 0;
+        const baseUrl = prov?.baseUrl ?? "(unknown)";
+        const syncMsg = changed ? "⚠️ Mismatch (out of sync)" : "✅ Synced";
+        return { content: [{ type: "text", text: `✅ Ollama Online | Server: ${serverCount} | Registered: ${registeredCount} | ${syncMsg}\nBase URL: ${baseUrl}` }], details: {} };
+      } catch (e) {
+        return { content: [{ type: "text", text: `❌ Ollama Offline: ${String(e)}` }], details: {} };
+      }
+    },
+  });
+
+  // Register slash command for refresh
+  pi.registerCommand?.("ollama-refresh", {
+    description: "Refresh Ollama model list and update configuration",
+    handler: async (_args: unknown, ctx: any) => {
+      const modelsPath = join(await (await import("@earendil-works/pi-coding-agent")).getAgentDir(), "models.json");
+      try {
+        const { config, names, changed } = await discoverAndSync(modelsPath, undefined, undefined);
+        const prov = (config as any)?.providers?.ollama;
+        const serverCount = names.length;
+        const registeredCount = Array.isArray(prov?.models) ? prov.models.length : 0;
+        const baseUrl = prov?.baseUrl ?? "(unknown)";
+        const syncMsg = changed ? "⚠️ Updated (was out of sync)" : "✅ Already up‑to‑date";
+        const refreshText = `🔄 Ollama Refresh | Server: ${serverCount} | Registered: ${registeredCount} | ${syncMsg}\nBase URL: ${baseUrl}`;
+ctx.ui.notify(refreshText, "info");
+return undefined;
+      } catch (e) {
+        return `❌ Ollama Refresh failed: ${String(e)}`;
+      }
+    },
+  });
+
+  // Register tool for refresh
+  pi.registerTool?.({
+    name: "ollama_refresh",
+    label: "Ollama Refresh",
+    description: "Refresh Ollama model list",
+    parameters: {},
+    async execute(_toolCallId: any, _params: any, _signal: any, _onUpdate: any, _ctx: any) {
+      const modelsPath = join(await (await import("@earendil-works/pi-coding-agent")).getAgentDir(), "models.json");
+      try {
+        const { config, names, changed } = await discoverAndSync(modelsPath, undefined, undefined);
+        const prov = (config as any)?.providers?.ollama;
+        const serverCount = names.length;
+        const registeredCount = Array.isArray(prov?.models) ? prov.models.length : 0;
+        const baseUrl = prov?.baseUrl ?? "(unknown)";
+        const syncMsg = changed ? "⚠️ Updated (was out of sync)" : "✅ Already up‑to‑date";
+        return { content: [{ type: "text", text: `🔄 Ollama Refresh | Server: ${serverCount} | Registered: ${registeredCount} | ${syncMsg}\nBase URL: ${baseUrl}` }], details: {} };
+      } catch (e) {
+        return { content: [{ type: "text", text: `❌ Ollama Refresh failed: ${String(e)}` }], details: {} };
+      }
+    },
+  });
 }
 
 export default async function piOllamaModels(pi: PiRegistration): Promise<void> {
