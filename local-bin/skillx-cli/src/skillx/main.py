@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections.abc import Sequence
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
-from typing import Sequence, cast
+from typing import TextIO, cast
 
 from .adapters import InstallRequest, Runtime, default_runtime
 from .cli import ArgumentParser
@@ -32,7 +33,7 @@ cli = ArgumentParser(prog="skillx")
 cli.enable_subcommands()
 
 
-def _common_arguments(
+def _common_args(
     *, ledger: bool = False, dry_run: bool = False, yes: bool = False
 ) -> tuple[object, ...]:
     arguments: list[object] = [
@@ -49,23 +50,37 @@ def _common_arguments(
     return tuple(arguments)
 
 
-def _emit(report: Report, runtime: Runtime, json_output: bool, verbose: bool) -> int:
-    if verbose:
-        for entry in report.entries:
-            if entry.diagnostic:
-                runtime.stderr.write(f"{entry.source} -> {entry.skill}:\n")
-                for line in entry.diagnostic.splitlines():
-                    runtime.stderr.write(f"  {line}\n")
-    if json_output:
-        json.dump(report.to_dict(), runtime.stdout, sort_keys=True)
-        runtime.stdout.write("\n")
-        return report.exit_code
-    stream = runtime.stderr if report.result in {"blocked", "failed"} else runtime.stdout
+def _emit_diagnostics(report: Report, stream: TextIO) -> None:
+    for entry in report.entries:
+        if not entry.diagnostic:
+            continue
+        stream.write(f"{entry.source} -> {entry.skill}:\n")
+        stream.writelines(f"  {line}\n" for line in entry.diagnostic.splitlines())
+
+
+def _emit_json(report: Report, stream: TextIO) -> None:
+    json.dump(report.to_dict(), stream, sort_keys=True)
+    stream.write("\n")
+
+
+def _emit_text(report: Report, stream: TextIO) -> None:
     for entry in report.entries:
         stream.write(f"{entry.status:44} {entry.source} -> {entry.skill}\n")
         if entry.message:
             stream.write(f"  {entry.message}\n")
     stream.write(f"Result: {report.result}; {report.planned_changes} change(s)\n")
+
+
+def _emit(report: Report, runtime: Runtime, json_output: bool, verbose: bool) -> int:
+    if verbose:
+        _emit_diagnostics(report, runtime.stderr)
+    if json_output:
+        _emit_json(report, runtime.stdout)
+        return report.exit_code
+    stream = (
+        runtime.stderr if report.result in {"blocked", "failed"} else runtime.stdout
+    )
+    _emit_text(report, stream)
     return report.exit_code
 
 
@@ -78,7 +93,9 @@ def _failure(
     verbose: bool,
 ) -> int:
     runtime.stderr.write(f"skillx: {message}\n")
-    return _emit(Report(operation, "failed", lockfile, ()), runtime, json_output, verbose)
+    return _emit(
+        Report(operation, "failed", lockfile, ()), runtime, json_output, verbose
+    )
 
 
 def _validated(
@@ -92,7 +109,7 @@ def _validated(
 
 
 @cli.command(
-    *_common_arguments(),
+    *_common_args(),
     help="validate desired and remote state without mutation",
 )
 def check(
@@ -112,7 +129,7 @@ def check(
 
 
 @cli.command(
-    *_common_arguments(dry_run=True),
+    *_common_args(dry_run=True),
     cli.argument("--agent", action="extend", nargs="+", default=[]),
     help="validate and install or update desired skills",
 )
@@ -153,7 +170,9 @@ def sync(
         except OSError as error:
             return _failure("sync", lockfile, str(error), runtime, json_output, verbose)
         if mutation.result.returncode != 0:
-            diagnostic = mutation.result.stderr.strip() or mutation.result.stdout.strip()
+            diagnostic = (
+                mutation.result.stderr.strip() or mutation.result.stdout.strip()
+            )
             try:
                 mutation.rollback()
             except OSError as rollback_error:
@@ -171,7 +190,7 @@ def sync(
 
 
 @cli.command(
-    *_common_arguments(dry_run=True, yes=True),
+    *_common_args(dry_run=True, yes=True),
     help="remove confirmed-invalid desired entries",
 )
 def repair(
@@ -205,9 +224,13 @@ def repair(
     if yes and not dry_run:
         try:
             runtime.filesystem.copy(lockfile, f"{lockfile}.{runtime.now()}.bak")
-            runtime.filesystem.write_atomic(lockfile, repaired_lockfile(content, repairable))
+            runtime.filesystem.write_atomic(
+                lockfile, repaired_lockfile(content, repairable)
+            )
         except OSError as error:
-            return _failure("repair", lockfile, str(error), runtime, json_output, verbose)
+            return _failure(
+                "repair", lockfile, str(error), runtime, json_output, verbose
+            )
         result = "changed"
     repaired = Report(
         "repair",
@@ -221,7 +244,7 @@ def repair(
 
 @cli.command(
     cli.argument("--from-lock", action="store_true", required=True),
-    *_common_arguments(ledger=True, dry_run=True, yes=True),
+    *_common_args(ledger=True, dry_run=True, yes=True),
     help="explicitly transfer custody of installed desired skills",
 )
 def adopt(
@@ -238,9 +261,11 @@ def adopt(
     """Validate and record exact-path ownership for existing installations."""
     del from_lock, meta_args
     validated = _validated("adopt", lockfile, runtime)
+
     if isinstance(validated, str):
         return _failure("adopt", lockfile, validated, runtime, json_output, verbose)
     content, report = validated
+
     if report.result != "ok":
         return _emit(report, runtime, json_output, verbose)
     inventory_result = runtime.npx.inventory()
@@ -274,7 +299,9 @@ def adopt(
         try:
             runtime.filesystem.write_atomic(ledger, ledger_content)
         except OSError as error:
-            return _failure("adopt", lockfile, str(error), runtime, json_output, verbose)
+            return _failure(
+                "adopt", lockfile, str(error), runtime, json_output, verbose
+            )
         result = "changed"
     adopted = Report(
         "adopt", result, lockfile, report.entries, planned_changes=len(report.entries)
@@ -283,7 +310,7 @@ def adopt(
 
 
 @cli.command(
-    *_common_arguments(ledger=True, dry_run=True, yes=True),
+    *_common_args(ledger=True, dry_run=True, yes=True),
     help="remove unambiguously owned skills absent from desired state",
 )
 def prune(
@@ -303,6 +330,7 @@ def prune(
         managed = parse_ledger(runtime.filesystem.read_text(ledger))
     except (ConfigurationError, FileNotFoundError, OSError) as error:
         return _failure("prune", lockfile, str(error), runtime, json_output, verbose)
+
     inventory_result = runtime.npx.inventory()
     if inventory_result.returncode != 0:
         diagnostic = inventory_result.stderr.strip() or inventory_result.stdout.strip()
@@ -343,9 +371,13 @@ def prune(
                 tuple(record.skill for record in candidates)
             )
         except OSError as error:
-            return _failure("prune", lockfile, str(error), runtime, json_output, verbose)
+            return _failure(
+                "prune", lockfile, str(error), runtime, json_output, verbose
+            )
         if mutation.result.returncode != 0:
-            diagnostic = mutation.result.stderr.strip() or mutation.result.stdout.strip()
+            diagnostic = (
+                mutation.result.stderr.strip() or mutation.result.stdout.strip()
+            )
             try:
                 mutation.rollback()
             except OSError as rollback_error:
@@ -382,13 +414,19 @@ def main(argv: Sequence[str] | None = None, *, runtime: Runtime | None = None) -
     except SystemExit as error:
         exit_code = 0 if error.code is None else int(error.code)
         if exit_code != 0 and "--json" in arguments:
-            operation = arguments[0] if arguments and arguments[0] in {
-                "check",
-                "sync",
-                "repair",
-                "adopt",
-                "prune",
-            } else "unknown"
+            operation = (
+                arguments[0]
+                if arguments
+                and arguments[0]
+                in {
+                    "check",
+                    "sync",
+                    "repair",
+                    "adopt",
+                    "prune",
+                }
+                else "unknown"
+            )
             lockfile = DEFAULT_LOCKFILE
             for index, argument in enumerate(arguments):
                 if argument == "--lockfile" and index + 1 < len(arguments):

@@ -5,7 +5,16 @@ import re
 from typing import Literal
 
 from .adapters import Npx
-from .models import Entry, InstalledSkill, ManagedSkill, Operation, Report, Result, Skill, Status
+from .models import (
+    Entry,
+    InstalledSkill,
+    ManagedSkill,
+    Operation,
+    Report,
+    Result,
+    Skill,
+    Status,
+)
 
 
 class ConfigurationError(ValueError):
@@ -15,7 +24,9 @@ class ConfigurationError(ValueError):
 class OwnershipError(ConfigurationError):
     def __init__(self, refusals: tuple[Entry, ...]) -> None:
         self.refusals = refusals
-        super().__init__("prune ownership is ambiguous: " + "; ".join(r.message for r in refusals))
+        super().__init__(
+            "prune ownership is ambiguous: " + "; ".join(r.message for r in refusals)
+        )
 
 
 def parse_lockfile(content: str) -> tuple[Skill, ...]:
@@ -25,6 +36,7 @@ def parse_lockfile(content: str) -> tuple[Skill, ...]:
         raise ConfigurationError(f"invalid lockfile JSON: {error.msg}") from error
     if not isinstance(document, dict) or not isinstance(document.get("skills"), dict):
         raise ConfigurationError("lockfile must contain a skills object")
+
     skills: list[Skill] = []
     for name, value in document["skills"].items():
         if not isinstance(name, str) or not name.strip():
@@ -123,10 +135,10 @@ def validate(
             "skill is not available from source",
         )
 
-    entries = tuple(
-        entry_for(skill) for skill in skills
+    entries = tuple(entry_for(skill) for skill in skills)
+    result: Result = (
+        "ok" if all(entry.status == "valid" for entry in entries) else "blocked"
     )
-    result: Result = "ok" if all(entry.status == "valid" for entry in entries) else "blocked"
     return Report(operation, result, lockfile, entries)
 
 
@@ -149,6 +161,7 @@ def parse_inventory(content: str) -> tuple[InstalledSkill, ...]:
         raise ConfigurationError(f"invalid inventory JSON: {error.msg}") from error
     if not isinstance(document, list):
         raise ConfigurationError("installed inventory must be a JSON array")
+
     installed: list[InstalledSkill] = []
     for index, item in enumerate(document):
         if not isinstance(item, dict):
@@ -161,8 +174,10 @@ def parse_inventory(content: str) -> tuple[InstalledSkill, ...]:
             raise ConfigurationError(f"inventory entry {index} needs a non-empty name")
         if not isinstance(path, str) or not path.startswith("/"):
             raise ConfigurationError(f"inventory entry {index} needs an absolute path")
-        if scope != "global" or not isinstance(agents, list) or not all(
-            isinstance(agent, str) for agent in agents
+        if (
+            scope != "global"
+            or not isinstance(agents, list)
+            or not all(isinstance(agent, str) for agent in agents)
         ):
             raise ConfigurationError(f"inventory entry {index} has an invalid shape")
         source = item.get("source")
@@ -171,9 +186,13 @@ def parse_inventory(content: str) -> tuple[InstalledSkill, ...]:
         if source is not None and not isinstance(source, str):
             raise ConfigurationError(f"inventory entry {index} has an invalid source")
         if source_url is not None and not isinstance(source_url, str):
-            raise ConfigurationError(f"inventory entry {index} has an invalid source URL")
+            raise ConfigurationError(
+                f"inventory entry {index} has an invalid source URL"
+            )
         if source_type is not None and not isinstance(source_type, str):
-            raise ConfigurationError(f"inventory entry {index} has an invalid source type")
+            raise ConfigurationError(
+                f"inventory entry {index} has an invalid source type"
+            )
         installed.append(InstalledSkill(name, path, source, source_url))
     return tuple(installed)
 
@@ -191,10 +210,14 @@ def _source_matches(desired: str, installed: InstalledSkill) -> bool:
     return bool(github_url and github_shorthand and github_url.group(1) == desired)
 
 
-def adoption_ledger(skills: tuple[Skill, ...], inventory: tuple[InstalledSkill, ...]) -> str:
+def adoption_ledger(
+    skills: tuple[Skill, ...], inventory: tuple[InstalledSkill, ...]
+) -> str:
     records: list[dict[str, str]] = []
     for skill in skills:
-        candidates = [item for item in inventory if item.name.casefold() == skill.name.casefold()]
+        candidates = [
+            item for item in inventory if item.name.casefold() == skill.name.casefold()
+        ]
         if len(candidates) != 1:
             raise ConfigurationError(
                 f"cannot adopt {skill.name!r}: expected one installed path, found {len(candidates)}"
@@ -204,20 +227,28 @@ def adoption_ledger(skills: tuple[Skill, ...], inventory: tuple[InstalledSkill, 
             raise ConfigurationError(
                 f"cannot adopt {skill.name!r}: installed source does not match desired source"
             )
-        records.append({"skill": skill.name, "source": skill.source, "path": installed.path})
-    return json.dumps({"schema_version": 1, "managed": records}, indent=2, sort_keys=True) + "\n"
+        records.append(
+            {"skill": skill.name, "source": skill.source, "path": installed.path}
+        )
+    return (
+        json.dumps({"schema_version": 1, "managed": records}, indent=2, sort_keys=True)
+        + "\n"
+    )
 
 
 def parse_ledger(content: str) -> tuple[ManagedSkill, ...]:
     try:
         document = json.loads(content)
     except json.JSONDecodeError as error:
-        raise ConfigurationError(f"invalid ownership ledger JSON: {error.msg}") from error
+        raise ConfigurationError(
+            f"invalid ownership ledger JSON: {error.msg}"
+        ) from error
     if not isinstance(document, dict) or document.get("schema_version") != 1:
         raise ConfigurationError("ownership ledger must use schema_version 1")
     raw_records = document.get("managed")
     if not isinstance(raw_records, list):
         raise ConfigurationError("ownership ledger must contain a managed array")
+
     records: list[ManagedSkill] = []
     seen_paths: set[str] = set()
     for index, item in enumerate(raw_records):
@@ -238,7 +269,9 @@ def parse_ledger(content: str) -> tuple[ManagedSkill, ...]:
         if not path.startswith("/"):
             raise ConfigurationError(f"ledger record {index} needs an absolute path")
         if path in seen_paths:
-            raise ConfigurationError(f"ownership ledger contains duplicate path {path!r}")
+            raise ConfigurationError(
+                f"ownership ledger contains duplicate path {path!r}"
+            )
         seen_paths.add(path)
         records.append(ManagedSkill(skill, source, path))
     return tuple(records)
@@ -272,7 +305,9 @@ def prune_candidates(
                 )
             )
             continue
-        matches = [installed for installed in inventory if installed.path == record.path]
+        matches = [
+            installed for installed in inventory if installed.path == record.path
+        ]
         if len(matches) != 1:
             refusals.append(
                 Entry(
@@ -316,4 +351,7 @@ def ledger_without(
         for record in managed
         if record.path not in removed_paths
     ]
-    return json.dumps({"schema_version": 1, "managed": records}, indent=2, sort_keys=True) + "\n"
+    return (
+        json.dumps({"schema_version": 1, "managed": records}, indent=2, sort_keys=True)
+        + "\n"
+    )

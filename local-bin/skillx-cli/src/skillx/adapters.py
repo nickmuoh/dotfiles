@@ -134,7 +134,9 @@ class SubprocessNpx:
         except subprocess.TimeoutExpired as error:
             stdout = error.stdout if isinstance(error.stdout, str) else ""
             stderr = error.stderr if isinstance(error.stderr, str) else ""
-            return CommandResult(124, stdout, stderr or f"command timed out after {timeout}s")
+            return CommandResult(
+                124, stdout, stderr or f"command timed out after {timeout}s"
+            )
         return CommandResult(completed.returncode, completed.stdout, completed.stderr)
 
     def inventory(self) -> CommandResult:
@@ -172,10 +174,13 @@ class SubprocessNpx:
         sanitized = re.sub(r"^[.\-]+|[.\-]+$", "", sanitized)
         return sanitized[:255] or "unnamed-skill"
 
-    def _snapshot(self, skills: tuple[str, ...]) -> tuple[tempfile.TemporaryDirectory[str], dict[str, Path | None], Path | None]:
+    def _snapshot(
+        self, skills: tuple[str, ...]
+    ) -> tuple[tempfile.TemporaryDirectory[str], dict[str, Path | None], Path | None]:
         temporary = tempfile.TemporaryDirectory(prefix="skillx-rollback-")
         snapshot_root = Path(temporary.name)
         home = Path(self.environment.get("HOME", str(Path.home()))).expanduser()
+
         snapshots: dict[str, Path | None] = {}
         for skill in skills:
             live_path = home / ".agents" / "skills" / self._sanitize_name(skill)
@@ -232,7 +237,10 @@ class SubprocessNpx:
 
     def install_transaction(self, requests: tuple[InstallRequest, ...]) -> Mutation:
         all_skills = tuple(skill for request in requests for skill in request.skills)
-        with tempfile.TemporaryDirectory(prefix="skillx-install-stage-") as staging_root:
+
+        with tempfile.TemporaryDirectory(
+            prefix="skillx-install-stage-"
+        ) as staging_root:
             for index, request in enumerate(requests):
                 staging_home = Path(staging_root) / str(index)
                 staging_home.mkdir()
@@ -247,7 +255,9 @@ class SubprocessNpx:
                         "CI": "1",
                     }
                 )
-                staged = self._run(self._install_arguments(request), environment=environment)
+                staged = self._run(
+                    self._install_arguments(request), environment=environment
+                )
                 if staged.returncode != 0:
                     return Mutation(staged)
 

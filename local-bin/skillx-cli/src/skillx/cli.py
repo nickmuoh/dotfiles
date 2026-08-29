@@ -15,8 +15,7 @@ TERM_COLOR_CODE_REGEX = re.compile(r"(.{2})(?=\[\d{1,2}m)")
 
 
 class copy_signature(Generic[F]):  # noqa: N801
-    def __init__(self, target: F) -> None:
-        ...
+    def __init__(self, target: F) -> None: ...
 
     def __call__(self, wrapped: Callable[..., Any]) -> F:
         return wrapped  # type: ignore[return-value]
@@ -66,7 +65,9 @@ class ArgumentParser(BaseArgParser):
 
     def print_error(self, message: str, is_colored: bool = False) -> NoReturn:
         if is_colored:
-            formatted = f"{TermColors.FAIL}{self.prog}: error: {TermColors.ENDC} {message}\n"
+            formatted = (
+                f"{TermColors.FAIL}{self.prog}: error: {TermColors.ENDC} {message}\n"
+            )
         else:
             formatted = self._strip_termcodes(f"{self.prog}: error: {message}\n")
         self.exit(2, formatted)
@@ -101,8 +102,10 @@ class ArgumentParser(BaseArgParser):
                     group_key = cmd_kwargs.pop("exclusive_group")
                     is_group_required = cmd_kwargs.pop("group_required", False)
                     if group_key not in group_store:
-                        group_store[group_key] = cmd_parser.add_mutually_exclusive_group(
-                            required=is_group_required
+                        group_store[group_key] = (
+                            cmd_parser.add_mutually_exclusive_group(
+                                required=is_group_required
+                            )
                         )
                     group_store[group_key].add_argument(*cmd_args, **cmd_kwargs)
                 else:
@@ -111,6 +114,7 @@ class ArgumentParser(BaseArgParser):
             return wrapper
 
         return decorator
+
     @copy_signature(BaseArgParser.add_argument)
     def argument(self, *args, **kwargs):
         return args, kwargs
@@ -120,7 +124,9 @@ class ArgumentParser(BaseArgParser):
         kwargs_ = kwargs.copy()
 
         def decorator(func: ArgParseCallable):
-            kwargs_.update({"dest": func.__name__, "action": "store_const", "const": func})
+            kwargs_.update(
+                {"dest": func.__name__, "action": "store_const", "const": func}
+            )
             self.add_argument(*args, **kwargs_)
             return func
 

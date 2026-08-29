@@ -149,7 +149,9 @@ class SkillxCommandTests(unittest.TestCase):
         self.assertEqual(output["result"], "planned")
         self.assertEqual(output["summary"], {"valid": 2, "planned_changes": 2})
 
-    def test_repair_backs_up_lockfile_and_removes_only_confirmed_missing_skill(self) -> None:
+    def test_repair_backs_up_lockfile_and_removes_only_confirmed_missing_skill(
+        self,
+    ) -> None:
         runtime, filesystem, npx, stdout, stderr = self.runtime(
             {
                 "skills": {
@@ -228,7 +230,9 @@ class SkillxCommandTests(unittest.TestCase):
         self.assertEqual(output["operation"], "adopt")
         self.assertEqual(output["result"], "changed")
 
-    def test_prune_removes_only_exact_path_ledger_entry_absent_from_lockfile(self) -> None:
+    def test_prune_removes_only_exact_path_ledger_entry_absent_from_lockfile(
+        self,
+    ) -> None:
         runtime, filesystem, npx, stdout, stderr = self.runtime(
             {"skills": {"keep": {"source": "owner/source"}}}
         )
@@ -299,7 +303,9 @@ class SkillxCommandTests(unittest.TestCase):
         self.assertEqual(output["result"], "changed")
         self.assertEqual(output["summary"]["planned_changes"], 1)
 
-    def test_sync_reports_all_validation_failures_and_blocks_every_mutation(self) -> None:
+    def test_sync_reports_all_validation_failures_and_blocks_every_mutation(
+        self,
+    ) -> None:
         runtime, filesystem, npx, stdout, stderr = self.runtime(
             {
                 "skills": {
@@ -370,7 +376,9 @@ class SkillxCommandTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(json.loads(stdout.getvalue())["entries"][0]["status"], "valid")
 
-    def test_check_classifies_explicit_no_valid_skills_without_guessing_from_404(self) -> None:
+    def test_check_classifies_explicit_no_valid_skills_without_guessing_from_404(
+        self,
+    ) -> None:
         runtime, _, npx, stdout, _ = self.runtime(
             {
                 "skills": {
@@ -384,7 +392,9 @@ class SkillxCommandTests(unittest.TestCase):
             "",
             "No valid skills found. Skills require a SKILL.md with name and description.",
         )
-        npx.source_results["owner/private"] = CommandResult(1, "", "Repository not found")
+        npx.source_results["owner/private"] = CommandResult(
+            1, "", "Repository not found"
+        )
 
         exit_code = main(
             ["check", "--lockfile", "/config/lock.json", "--json"], runtime=runtime
@@ -575,7 +585,9 @@ class SkillxCommandTests(unittest.TestCase):
             {"skills": {"bad": {"source": "owner/empty"}}}
         )
         npx.source_results["owner/empty"] = CommandResult(
-            0, "◇  Available Skills\n└  Use --skill <name> to install specific skills\n", ""
+            0,
+            "◇  Available Skills\n└  Use --skill <name> to install specific skills\n",
+            "",
         )
 
         exit_code = main(
