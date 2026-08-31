@@ -281,7 +281,7 @@ def sync_events(
         yield _event(
             EventKind.PROGRESS,
             Operation.SYNC,
-            f"Fetching {entry.source} -> {entry.skill}...",
+            f"Fetching {entry.source}: {entry.skill}...",
             current=current,
             total=len(report.entries),
             skill_id=entry.skill,

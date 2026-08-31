@@ -148,7 +148,7 @@ class SkillxCommandTests(unittest.TestCase):
             "✨ All 1 requested skills are available from their sources.",
             stdout.getvalue(),
         )
-        self.assertIn("Result: OK; 0 change(s) needed.", stdout.getvalue())
+        self.assertNotIn("Result:", stdout.getvalue())
         self.assertNotIn("owner/source -> one", stdout.getvalue())
         self.assertNotIn("\x1b", stdout.getvalue())
         self.assertNotIn("\r", stdout.getvalue())
@@ -167,7 +167,7 @@ class SkillxCommandTests(unittest.TestCase):
         self.assertEqual(exit_code, 1)
         self.assertIn("Check completed: 1 requested skill is unavailable.", output)
         self.assertIn("Unavailable skills:", output)
-        self.assertIn("Result: DRIFT; 0 change(s).", output)
+        self.assertNotIn("Result:", output)
         self.assertNotIn("Blocked.", output)
 
     def test_verbose_human_check_keeps_source_diagnostics_on_stderr(self) -> None:
@@ -199,7 +199,7 @@ class SkillxCommandTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(stderr.getvalue(), "")
         self.assertIn("==> 📦 Syncing 1 skill", stdout.getvalue())
-        self.assertIn("[1/1] ⬇️ Fetching owner/source -> one...", stdout.getvalue())
+        self.assertIn("[1/1] ⬇️ Fetching owner/source: one...", stdout.getvalue())
         self.assertIn("📦 Installed or updated 1 requested skill", stdout.getvalue())
         self.assertNotIn("Updated .skill-lock.json", stdout.getvalue())
         self.assertNotIn("Reconciled local skill links", stdout.getvalue())
@@ -220,8 +220,74 @@ class SkillxCommandTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(npx.mutations, [])
         self.assertIn("==> 📦 Planning sync for 1 skill", stdout.getvalue())
+        self.assertIn("📦 owner/source: one", stdout.getvalue())
+        self.assertNotIn("owner/source -> one", stdout.getvalue())
         self.assertIn("✨ Dry run complete. 1 change(s) planned; nothing was changed.", stdout.getvalue())
-        self.assertIn("Result: PLANNED; 1 change(s).", stdout.getvalue())
+        self.assertNotIn("Result:", stdout.getvalue())
+
+    def test_sync_dry_run_groups_skills_by_source_and_truncates_long_groups(self) -> None:
+        runtime, _, npx, stdout, _ = self.runtime(
+            {
+                "skills": {
+                    "one": {"source": "owner/one"},
+                    "two": {"source": "owner/one"},
+                    "three": {"source": "owner/one"},
+                    "four": {"source": "owner/one"},
+                    "five": {"source": "owner/one"},
+                    "six": {"source": "owner/two"},
+                }
+            }
+        )
+        npx.source_results["owner/one"] = CommandResult(
+            0,
+            '{"skills":[{"name":"one"},{"name":"two"},{"name":"three"},'
+            '{"name":"four"},{"name":"five"}]}',
+            "",
+        )
+        npx.source_results["owner/two"] = CommandResult(
+            0, '{"skills":[{"name":"six"}]}', ""
+        )
+
+        exit_code = main(
+            ["sync", "--lockfile", "/config/lock.json", "--dry-run"],
+            runtime=runtime,
+        )
+
+        output = stdout.getvalue()
+        self.assertEqual(exit_code, 0)
+        self.assertIn("📦 owner/one: one, two, three, four … (+1 more)", output)
+        self.assertIn("📦 owner/two: six", output)
+        self.assertEqual(output.count("owner/one:"), 1)
+        self.assertNotIn("will install or update this requested skill", output)
+        self.assertNotIn(" -> ", output)
+
+    def test_verbose_sync_dry_run_shows_each_group_in_full(self) -> None:
+        runtime, _, npx, stdout, _ = self.runtime(
+            {
+                "skills": {
+                    "one": {"source": "owner/source"},
+                    "two": {"source": "owner/source"},
+                    "three": {"source": "owner/source"},
+                    "four": {"source": "owner/source"},
+                    "five": {"source": "owner/source"},
+                }
+            }
+        )
+        npx.source_results["owner/source"] = CommandResult(
+            0,
+            '{"skills":[{"name":"one"},{"name":"two"},{"name":"three"},'
+            '{"name":"four"},{"name":"five"}]}',
+            "",
+        )
+
+        exit_code = main(
+            ["sync", "--lockfile", "/config/lock.json", "--dry-run", "-v"],
+            runtime=runtime,
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("📦 owner/source: one, two, three, four, five", stdout.getvalue())
+        self.assertNotIn("(+1 more)", stdout.getvalue())
 
     def test_sync_with_an_empty_lockfile_is_a_truthful_noop(self) -> None:
         runtime, _, npx, stdout, stderr = self.runtime({"skills": {}})
@@ -249,10 +315,10 @@ class SkillxCommandTests(unittest.TestCase):
         self.assertEqual(stderr.getvalue(), "")
         self.assertIn("🛑 Blocked. 1 skill could not be resolved; no files were changed.", stdout.getvalue())
         self.assertIn("Unresolved skills:", stdout.getvalue())
-        self.assertIn("✗ owner/source -> missing", stdout.getvalue())
+        self.assertIn("✗ owner/source: missing", stdout.getvalue())
         self.assertIn("skill is not available from source", stdout.getvalue())
         self.assertIn("skillx repair", stdout.getvalue())
-        self.assertIn("Result: BLOCKED; 0 change(s).", stdout.getvalue())
+        self.assertNotIn("Result:", stdout.getvalue())
 
     def test_repair_plan_identifies_the_entries_it_would_remove(self) -> None:
         runtime, _, npx, stdout, stderr = self.runtime(
@@ -267,7 +333,7 @@ class SkillxCommandTests(unittest.TestCase):
         self.assertEqual(exit_code, 1)
         self.assertEqual(stderr.getvalue(), "")
         self.assertIn("Planned changes:", stdout.getvalue())
-        self.assertIn("✗ owner/source -> gone", stdout.getvalue())
+        self.assertIn("✗ owner/source: gone", stdout.getvalue())
         self.assertIn("skill is not available from source", stdout.getvalue())
         self.assertIn(
             "skillx repair --lockfile /config/lock.json --yes", stdout.getvalue()
@@ -351,7 +417,8 @@ class SkillxCommandTests(unittest.TestCase):
         exit_code = main(["sync", "--lockfile", "/config/lock.json"], runtime=runtime)
 
         self.assertEqual(exit_code, 2)
-        self.assertIn("Result: FAILED; no changes were made.", stdout.getvalue())
+        self.assertIn("No changes were made.", stdout.getvalue())
+        self.assertNotIn("Result:", stdout.getvalue())
         self.assertNotIn("rolled back safely", stdout.getvalue())
 
     def test_repair_human_output_uses_shared_mutation_language(self) -> None:
@@ -417,9 +484,9 @@ class SkillxCommandTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertEqual(exit_code, 1)
         self.assertIn("Applied changes:", output)
-        self.assertIn("owner/available -> gone", output)
+        self.assertIn("owner/available: gone", output)
         self.assertIn("Still unresolved:", output)
-        self.assertIn("owner/private -> private", output)
+        self.assertIn("owner/private: private", output)
         self.assertIn("retry when source access is available", output)
         self.assertNotIn("(0 errors)", output)
 
@@ -481,7 +548,7 @@ class SkillxCommandTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertEqual(exit_code, 0)
         self.assertIn("Planned ownership records:", output)
-        self.assertIn("owner/source -> one", output)
+        self.assertIn("owner/source: one", output)
         self.assertIn("/agents/skills/one", output)
         self.assertIn("/config/managed.json", output)
         self.assertIn(
@@ -556,7 +623,7 @@ class SkillxCommandTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(stderr.getvalue(), "")
         self.assertIn("\x1b[1;34m==>\x1b[0m 🔍", output)
-        self.assertIn("\r\x1b[2K\x1b[2m[1/1] ⬇️ Fetching owner/source -> one...\x1b[0m", output)
+        self.assertIn("\r\x1b[2K\x1b[2m[1/1] ⬇️ Fetching owner/source: one...\x1b[0m", output)
         self.assertIn("\x1b[0m\n📦 Installed or updated", output)
 
     def test_sync_dry_run_reports_plan_without_mutation(self) -> None:
