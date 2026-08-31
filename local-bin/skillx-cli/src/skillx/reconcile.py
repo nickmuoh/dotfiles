@@ -64,7 +64,7 @@ def _listed_names(output: str) -> set[str] | None:
         names: set[str] = set()
         for raw_line in output.splitlines():
             line = ansi_escape.sub("", raw_line)
-            match = re.match(r"^[│|]\s{2}(\S(?:.*\S)?)\s*$", line)
+            match = re.match(r"^[│|](?: {2}| {4})(\S+)\s*$", line)
             if match:
                 names.add(match.group(1).casefold())
         return names if "Available Skills" in output else None

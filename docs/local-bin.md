@@ -7,7 +7,9 @@ The `local-bin` package stows user-owned helpers under `~/.local/bin/`.
 - `mwt` manages sparse worktrees from a backend repository's `wt.yaml`; it requires `git` and `yq`.
 - `skillx` safely reconciles globally installed agent skills with `~/.agents/.skill-lock.json`. It requires Python 3.12 or newer and `npx`; it has no third-party Python runtime dependencies and does not require `jq`.
 
-The Stow-facing `skillx` executable loads its implementation from the ignored `skillx-cli` project in this package. The command defaults to `~/.agents/.skill-lock.json`; `--lockfile` or `LOCKFILE` can override it. Ownership used for pruning is recorded separately in `~/.agents/.skillx-managed.json`.
+The Stow-facing `skillx` executable loads its implementation from the ignored `skillx-cli` project in this package. The command defaults to `~/.agents/.skill-lock.json`; `--lockfile` or `LOCKFILE` can override it. Ownership used for pruning is recorded separately in `~/.agents/.skillx-managed.json`. Source validation accepts the Skills CLI's JSON output and its supported text list layouts.
+
+Human output is event-driven: it shows an audit phase, meaningful action and mutation events, blocked or failed outcomes, and a single final summary. Interactive terminals use blue phase headers, dim in-place progress, and ANSI line cleanup; redirected output uses complete newline-delimited lines. Valid entries are omitted from human reports. `--json` bypasses this renderer and emits exactly one unchanged schema-versioned report.
 
 Commands:
 

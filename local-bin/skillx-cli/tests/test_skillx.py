@@ -66,6 +66,11 @@ class FakeNpx:
         )
 
 
+class TtyStringIO(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
 class SkillxCommandTests(unittest.TestCase):
     def fixture(self, name: str) -> object:
         path = Path(__file__).with_name("fixtures") / name
@@ -122,6 +127,228 @@ class SkillxCommandTests(unittest.TestCase):
                 ],
             },
         )
+
+    def test_check_hides_valid_entries_and_reports_a_noop(self) -> None:
+        runtime, _, npx, stdout, stderr = self.runtime(
+            {"skills": {"one": {"source": "owner/source"}}}
+        )
+        npx.source_results["owner/source"] = CommandResult(
+            0, '{"skills":[{"name":"one"}]}', ""
+        )
+
+        exit_code = main(["check", "--lockfile", "/config/lock.json"], runtime=runtime)
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("==> 🔍 Auditing desired skill inventory...", stdout.getvalue())
+        self.assertIn("✨ All 1 requested skills are valid and up-to-date.", stdout.getvalue())
+        self.assertIn("Result: OK; 0 change(s) needed.", stdout.getvalue())
+        self.assertNotIn("owner/source -> one", stdout.getvalue())
+        self.assertNotIn("\x1b", stdout.getvalue())
+        self.assertNotIn("\r", stdout.getvalue())
+
+    def test_verbose_human_check_keeps_source_diagnostics_on_stderr(self) -> None:
+        runtime, _, npx, stdout, stderr = self.runtime(
+            {"skills": {"one": {"source": "owner/source"}}}
+        )
+        npx.source_results["owner/source"] = CommandResult(
+            1, "", "source diagnostic"
+        )
+
+        exit_code = main(
+            ["check", "--lockfile", "/config/lock.json", "-v"], runtime=runtime
+        )
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("source diagnostic", stderr.getvalue())
+        self.assertNotIn("source diagnostic", stdout.getvalue())
+
+    def test_sync_human_output_reports_progress_and_state_changes(self) -> None:
+        runtime, _, npx, stdout, stderr = self.runtime(
+            {"skills": {"one": {"source": "owner/source"}}}
+        )
+        npx.source_results["owner/source"] = CommandResult(
+            0, '{"skills":[{"name":"one"}]}', ""
+        )
+
+        exit_code = main(["sync", "--lockfile", "/config/lock.json"], runtime=runtime)
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("==> 📦 Syncing 1 requested skills", stdout.getvalue())
+        self.assertIn("[1/1] ⬇️ Fetching owner/source -> one...", stdout.getvalue())
+        self.assertIn("📝 Updated .skill-lock.json", stdout.getvalue())
+        self.assertIn("🔗 Reconciled local skill links", stdout.getvalue())
+        self.assertIn("🎉 Reconciled 1 skills. (0 errors)", stdout.getvalue())
+
+    def test_sync_dry_run_human_output_identifies_unapplied_plan(self) -> None:
+        runtime, _, npx, stdout, stderr = self.runtime(
+            {"skills": {"one": {"source": "owner/source"}}}
+        )
+        npx.source_results["owner/source"] = CommandResult(
+            0, '{"skills":[{"name":"one"}]}', ""
+        )
+
+        exit_code = main(
+            ["sync", "--lockfile", "/config/lock.json", "--dry-run"], runtime=runtime
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(npx.mutations, [])
+        self.assertIn("==> 📦 Planning sync for 1 requested skills", stdout.getvalue())
+        self.assertIn("✨ Dry run complete. 1 change(s) planned; nothing was changed.", stdout.getvalue())
+        self.assertIn("Result: PLANNED; 1 change(s).", stdout.getvalue())
+
+    def test_blocked_human_output_says_no_mutation_occurred(self) -> None:
+        runtime, _, npx, stdout, stderr = self.runtime(
+            {"skills": {"missing": {"source": "owner/source"}}}
+        )
+        npx.source_results["owner/source"] = CommandResult(
+            0, '{"skills":[{"name":"other"}]}', ""
+        )
+
+        exit_code = main(["sync", "--lockfile", "/config/lock.json"], runtime=runtime)
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("🛑 Blocked. 1 skill could not be resolved; no files were changed.", stdout.getvalue())
+        self.assertIn("Result: BLOCKED; 0 change(s).", stdout.getvalue())
+
+    def test_failed_human_output_keeps_diagnostics_behind_verbose(self) -> None:
+        runtime, _, npx, stdout, stderr = self.runtime(
+            {"skills": {"one": {"source": "owner/source"}}}
+        )
+        npx.source_results["owner/source"] = CommandResult(
+            0, '{"skills":[{"name":"one"}]}', ""
+        )
+        npx.install_result = CommandResult(1, "", "disk full")
+
+        exit_code = main(
+            ["sync", "--lockfile", "/config/lock.json", "-v"], runtime=runtime
+        )
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("❌ install failed", stdout.getvalue())
+        self.assertIn("skillx: install failed", stderr.getvalue())
+        self.assertIn("disk full", stderr.getvalue())
+
+    def test_repair_human_output_uses_shared_mutation_language(self) -> None:
+        runtime, _, npx, stdout, stderr = self.runtime(
+            {"skills": {"gone": {"source": "owner/source"}}}
+        )
+        npx.source_results["owner/source"] = CommandResult(
+            0, '{"skills":[{"name":"other"}]}', ""
+        )
+
+        exit_code = main(
+            ["repair", "--lockfile", "/config/lock.json", "--yes"], runtime=runtime
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("📝 Repairing 1 skills", stdout.getvalue())
+        self.assertIn("📝 Updated .skill-lock.json", stdout.getvalue())
+        self.assertIn("🎉 Repaired 1 skills. (0 errors)", stdout.getvalue())
+
+    def test_adopt_human_output_uses_shared_mutation_language(self) -> None:
+        runtime, filesystem, npx, stdout, stderr = self.runtime(
+            {"skills": {"one": {"source": "owner/source"}}}
+        )
+        npx.source_results["owner/source"] = CommandResult(
+            0, '{"skills":[{"name":"one"}]}', ""
+        )
+        npx.inventory_result = CommandResult(
+            0,
+            json.dumps(self.fixture("owned-inventory.json")),
+            "",
+        )
+
+        exit_code = main(
+            [
+                "adopt",
+                "--from-lock",
+                "--lockfile",
+                "/config/lock.json",
+                "--ledger",
+                "/config/managed.json",
+                "--yes",
+            ],
+            runtime=runtime,
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("📝 Updated skill ownership ledger", stdout.getvalue())
+        self.assertIn("🎉 Adopted 1 skills. (0 errors)", stdout.getvalue())
+        self.assertIn("/config/managed.json", filesystem.files)
+
+    def test_prune_human_output_uses_shared_mutation_language(self) -> None:
+        runtime, filesystem, npx, stdout, stderr = self.runtime({"skills": {}})
+        filesystem.files["/config/managed.json"] = json.dumps(
+            {
+                "schema_version": 1,
+                "managed": [
+                    {
+                        "skill": "stale",
+                        "source": "owner/source",
+                        "path": "/agents/skills/stale",
+                    }
+                ],
+            }
+        )
+        npx.inventory_result = CommandResult(
+            0,
+            json.dumps(
+                [
+                    {
+                        "name": "stale",
+                        "path": "/agents/skills/stale",
+                        "scope": "global",
+                        "agents": [],
+                        "source": "owner/source",
+                        "sourceUrl": None,
+                        "sourceType": "github",
+                    }
+                ]
+            ),
+            "",
+        )
+
+        exit_code = main(
+            [
+                "prune",
+                "--lockfile",
+                "/config/lock.json",
+                "--ledger",
+                "/config/managed.json",
+                "--yes",
+            ],
+            runtime=runtime,
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("🔗 Reconciled local skill links", stdout.getvalue())
+        self.assertIn("🎉 Pruned 1 skills. (0 errors)", stdout.getvalue())
+
+    def test_tty_human_output_uses_ansi_progress_and_closes_before_summary(self) -> None:
+        runtime, _, npx, _, stderr = self.runtime(
+            {"skills": {"one": {"source": "owner/source"}}}
+        )
+        stdout = TtyStringIO()
+        runtime.stdout = stdout
+        npx.source_results["owner/source"] = CommandResult(
+            0, '{"skills":[{"name":"one"}]}', ""
+        )
+
+        exit_code = main(["sync", "--lockfile", "/config/lock.json"], runtime=runtime)
+
+        output = stdout.getvalue()
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("\x1b[1;34m==>\x1b[0m 🔍", output)
+        self.assertIn("\r\x1b[2K\x1b[2m[1/1] ⬇️ Fetching owner/source -> one...\x1b[0m", output)
+        self.assertIn("\x1b[0m\n📝 Updated", output)
 
     def test_sync_dry_run_reports_plan_without_mutation(self) -> None:
         runtime, _, npx, stdout, stderr = self.runtime(
@@ -389,6 +616,47 @@ class SkillxCommandTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(json.loads(stdout.getvalue())["entries"][0]["status"], "valid")
+
+    def test_check_parses_current_upstream_list_text_indentation(self) -> None:
+        runtime, _, npx, stdout, _ = self.runtime(
+            {"skills": {"in-ste": {"source": "owner/source"}}}
+        )
+        npx.source_results["owner/source"] = CommandResult(
+            0,
+            "◇  Available Skills\n│\n│    in-ste\n│\n"
+            "└  Use --skill <name> to install specific skills\n",
+            "",
+        )
+
+        exit_code = main(
+            ["check", "--lockfile", "/config/lock.json", "--json"],
+            runtime=runtime,
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(json.loads(stdout.getvalue())["entries"][0]["status"], "valid")
+
+    def test_check_does_not_treat_a_description_as_a_skill(self) -> None:
+        runtime, _, npx, stdout, _ = self.runtime(
+            {"skills": {"technical-writing": {"source": "owner/source"}}}
+        )
+        npx.source_results["owner/source"] = CommandResult(
+            0,
+            "◇  Available Skills\n│  in-ste\n│    technical writing\n"
+            "└  Use --skill <name> to install specific skills\n",
+            "",
+        )
+
+        exit_code = main(
+            ["check", "--lockfile", "/config/lock.json", "--json"],
+            runtime=runtime,
+        )
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(
+            json.loads(stdout.getvalue())["entries"][0]["status"],
+            "confirmed-missing-skill",
+        )
 
     def test_check_classifies_explicit_no_valid_skills_without_guessing_from_404(
         self,

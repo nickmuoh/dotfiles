@@ -1,16 +1,35 @@
 from __future__ import annotations
 
-import json
 import traceback
 from argparse import Namespace
-from collections.abc import Callable, Sequence
-from typing import TextIO
+from collections.abc import Callable, Iterable, Iterator, Sequence
 
-from .adapters import Runtime
-from .models import Operation, Report, Result
-from .reconcile import ConfigurationError
+from .adapters import CommandResult, InstallRequest, Mutation, Runtime
+from .models import (
+    Entry,
+    EventAction,
+    EventKind,
+    ExecutionEvent,
+    InstalledSkill,
+    Operation,
+    Report,
+    Result,
+    Status,
+)
+from .reconcile import (
+    ConfigurationError,
+    OwnershipError,
+    adoption_ledger,
+    ledger_without,
+    parse_inventory,
+    parse_ledger,
+    parse_lockfile,
+    prune_candidates,
+    repaired_lockfile,
+    validate,
+)
 
-CommandHandler = Callable[[Namespace], Report]
+CommandHandler = Callable[[Namespace], Iterable[ExecutionEvent]]
 
 
 class AgentSkillError(RuntimeError):
@@ -29,31 +48,26 @@ class AgentSkillError(RuntimeError):
         self.diagnostics = diagnostics
 
 
-def execute(handler: CommandHandler, args: Namespace, runtime: Runtime) -> int:
-    """Run one command and apply the CLI failure and output policy."""
+def execute(handler: CommandHandler, args: Namespace) -> Iterator[ExecutionEvent]:
+    """Run UI-agnostic orchestration and yield facts about its execution."""
     try:
-        report = handler(args)
+        yield from handler(args)
     except AgentSkillError as error:
-        report = Report(error.operation, Result.FAILED, error.lockfile, ())
-        _write_error(error, runtime.stderr, args.verbose)
+        yield from _failure_events(error)
     except (ConfigurationError, OSError) as error:
         contextual = AgentSkillError(
             Operation(args.command), args.lockfile, str(error)
         ).with_traceback(error.__traceback__)
-        report = Report(contextual.operation, Result.FAILED, contextual.lockfile, ())
-        _write_error(contextual, runtime.stderr, args.verbose)
-
-    return emit(report, runtime, args.json_output, args.verbose)
+        yield from _failure_events(contextual)
 
 
 def usage_failure(
     arguments: Sequence[str],
     diagnostics: str,
     default_lockfile: str,
-    runtime: Runtime,
     cause: BaseException | None = None,
-) -> int:
-    """Render an argument-parsing failure through the normal CLI policy."""
+) -> tuple[ExecutionEvent, ...]:
+    """Represent an argument-parsing failure as the normal event sequence."""
     error = AgentSkillError(
         _operation_from(arguments),
         _option_value(arguments, "--lockfile") or default_lockfile,
@@ -62,48 +76,394 @@ def usage_failure(
     )
     if cause is not None:
         error = error.with_traceback(cause.__traceback__)
-    report = Report(error.operation, Result.FAILED, error.lockfile, ())
-    verbosity = _verbosity_from(arguments)
-    _write_error(error, runtime.stderr, verbosity)
-    return emit(report, runtime, "--json" in arguments, verbosity)
+    return tuple(_failure_events(error))
 
 
-def emit(report: Report, runtime: Runtime, json_output: bool, verbosity: int) -> int:
-    """Write a report while keeping diagnostics separate from report data."""
-    if verbosity:
-        _write_report_diagnostics(report, runtime.stderr)
-    if json_output:
-        json.dump(report.to_dict(), runtime.stdout, sort_keys=True)
-        runtime.stdout.write("\n")
+def verbosity_from(arguments: Sequence[str]) -> int:
+    """Count short and long verbose options before argument parsing succeeds."""
+    return sum(
+        1 if argument in {"-v", "--verbose"} else len(argument) - 1
+        for argument in arguments
+        if argument in {"-v", "--verbose"}
+        or (argument.startswith("-") and set(argument[1:]) == {"v"})
+    )
+
+
+def _failure_events(error: AgentSkillError) -> Iterator[ExecutionEvent]:
+    yield ExecutionEvent(
+        EventKind.FAILED,
+        error.operation,
+        str(error),
+        diagnostic=error.diagnostics,
+        debug="".join(traceback.format_exception(error)),
+        action=EventAction.FAILED,
+    )
+    yield ExecutionEvent(
+        EventKind.COMPLETE,
+        error.operation,
+        report=Report(error.operation, Result.FAILED, error.lockfile, ()),
+    )
+
+
+def _event(
+    kind: EventKind,
+    operation: Operation,
+    message: str = "",
+    *,
+    current: int | None = None,
+    total: int | None = None,
+    skill_id: str | None = None,
+    action: EventAction | None = None,
+) -> ExecutionEvent:
+    return ExecutionEvent(
+        kind,
+        operation,
+        message,
+        current,
+        total,
+        skill_id,
+        action=action,
+    )
+
+
+def _complete(report: Report) -> ExecutionEvent:
+    return ExecutionEvent(EventKind.COMPLETE, report.operation, report=report)
+
+
+def _audit(operation: Operation) -> ExecutionEvent:
+    return _event(
+        EventKind.PHASE,
+        operation,
+        "Auditing desired skill inventory...",
+        action=EventAction.AUDIT,
+    )
+
+
+def _blocked(report: Report, *, ownership: bool = False) -> ExecutionEvent:
+    if ownership:
+        message = "Blocked. Ownership could not be established safely; no files were changed."
     else:
-        _write_text_report(report, runtime.stdout)
-    return report.exit_code
+        unresolved = sum(entry.status is not Status.VALID for entry in report.entries)
+        noun = "skill" if unresolved == 1 else "skills"
+        message = (
+            f"Blocked. {unresolved} {noun} could not be resolved; "
+            "no files were changed."
+        )
+    return _event(
+        EventKind.BLOCKED,
+        report.operation,
+        message,
+        action=EventAction.BLOCKED,
+    )
 
 
-def _write_error(error: AgentSkillError, stream: TextIO, verbosity: int) -> None:
-    if verbosity < 1:
+def validated_lockfile(
+    operation: Operation, lockfile: str, runtime: Runtime
+) -> tuple[str, Report]:
+    """Read desired state and return its reconciliation report."""
+    content = runtime.filesystem.read_text(lockfile)
+    return content, validate(lockfile, content, runtime.npx, operation)
+
+
+def inventory_for(
+    operation: Operation, lockfile: str, runtime: Runtime
+) -> tuple[InstalledSkill, ...]:
+    """Load installed skills or raise one contextual external-command failure."""
+    result = runtime.npx.inventory()
+    if result.returncode != 0:
+        raise AgentSkillError(
+            operation,
+            lockfile,
+            "inventory command failed",
+            command_diagnostics(result),
+        )
+    return parse_inventory(result.stdout)
+
+
+def command_diagnostics(result: CommandResult) -> str:
+    """Select the command output that explains a failed external command."""
+    return result.stderr.strip() or result.stdout.strip() or "no diagnostic output"
+
+
+def require_success(
+    mutation: Mutation, operation: Operation, lockfile: str, action: str
+) -> None:
+    """Restore a failed transaction before raising its contextual failure."""
+    if mutation.result.returncode == 0:
         return
-    stream.write(f"skillx: {error}\n")
-    if error.diagnostics:
-        stream.write(error.diagnostics.rstrip() + "\n")
-    if verbosity > 1:
-        traceback.print_exception(error, file=stream)
+
+    diagnostics = command_diagnostics(mutation.result)
+    try:
+        mutation.rollback()
+    except OSError as error:
+        diagnostics = f"{diagnostics}; rollback failed: {error}"
+    raise AgentSkillError(operation, lockfile, f"{action} failed", diagnostics)
 
 
-def _write_report_diagnostics(report: Report, stream: TextIO) -> None:
+def check_events(lockfile: str, runtime: Runtime) -> Iterator[ExecutionEvent]:
+    """Report source and skill classifications without changing state."""
+    yield _audit(Operation.CHECK)
+    _, report = validated_lockfile(Operation.CHECK, lockfile, runtime)
+    if report.result is not Result.OK:
+        yield _blocked(report)
+    yield _complete(report)
+
+
+def sync_events(
+    lockfile: str, dry_run: bool, agent: list[str], runtime: Runtime
+) -> Iterator[ExecutionEvent]:
+    """Converge installed skills only after every desired entry validates."""
+    yield _audit(Operation.SYNC)
+    _, report = validated_lockfile(Operation.SYNC, lockfile, runtime)
+    if report.result is not Result.OK:
+        yield _blocked(report)
+        yield _complete(report)
+        return
+
+    synced = Report(
+        Operation.SYNC,
+        Result.PLANNED if dry_run else Result.CHANGED,
+        lockfile,
+        report.entries,
+        planned_changes=len(report.entries),
+    )
+    action = (
+        f"Planning sync for {len(report.entries)} requested skills"
+        if dry_run
+        else f"Syncing {len(report.entries)} requested skills"
+    )
+    yield _event(EventKind.PHASE, Operation.SYNC, action, action=EventAction.BATCH)
+    if dry_run:
+        yield _complete(synced)
+        return
+
+    skills_by_source: dict[str, list[str]] = {}
     for entry in report.entries:
-        if not entry.diagnostic:
-            continue
-        stream.write(f"{entry.source} -> {entry.skill}:\n")
-        stream.writelines(f"  {line}\n" for line in entry.diagnostic.splitlines())
+        skills_by_source.setdefault(entry.source, []).append(entry.skill)
+    requests = tuple(
+        InstallRequest(source, tuple(skills), tuple(agent))
+        for source, skills in skills_by_source.items()
+    )
+    for current, entry in enumerate(report.entries, start=1):
+        yield _event(
+            EventKind.PROGRESS,
+            Operation.SYNC,
+            f"Fetching {entry.source} -> {entry.skill}...",
+            current=current,
+            total=len(report.entries),
+            skill_id=entry.skill,
+            action=EventAction.FETCH,
+        )
+
+    mutation = runtime.npx.install_transaction(requests)
+    require_success(mutation, Operation.SYNC, lockfile, "install")
+    mutation.commit()
+    yield _event(
+        EventKind.MUTATION,
+        Operation.SYNC,
+        "Updated .skill-lock.json",
+        action=EventAction.FILE,
+    )
+    yield _event(
+        EventKind.MUTATION,
+        Operation.SYNC,
+        "Reconciled local skill links",
+        action=EventAction.LINK,
+    )
+    yield _complete(synced)
 
 
-def _write_text_report(report: Report, stream: TextIO) -> None:
-    for entry in report.entries:
-        stream.write(f"{entry.status:44} {entry.source} -> {entry.skill}\n")
-        if entry.message:
-            stream.write(f"  {entry.message}\n")
-    stream.write(f"Result: {report.result}; {report.planned_changes} change(s)\n")
+def repair_events(
+    lockfile: str, dry_run: bool, yes: bool, runtime: Runtime
+) -> Iterator[ExecutionEvent]:
+    """Back up and repair only entries proven invalid by enumeration."""
+    yield _audit(Operation.REPAIR)
+    content, report = validated_lockfile(Operation.REPAIR, lockfile, runtime)
+    repairable = {
+        entry.skill
+        for entry in report.entries
+        if entry.status
+        in {
+            Status.CONFIRMED_MISSING_SOURCE,
+            Status.CONFIRMED_MISSING_SKILL,
+            Status.CONFIRMED_INVALID_SOURCE,
+        }
+    }
+    if not repairable:
+        if report.result is not Result.OK:
+            yield _blocked(report)
+        yield _complete(report)
+        return
+
+    should_change = yes and not dry_run
+    yield _event(
+        EventKind.PHASE,
+        Operation.REPAIR,
+        f"{'Repairing' if should_change else 'Planning repair for'} {len(repairable)} skills",
+        action=EventAction.FILE,
+    )
+    result = Result.PLANNED
+    if should_change:
+        runtime.filesystem.copy(lockfile, f"{lockfile}.{runtime.now()}.bak")
+        runtime.filesystem.write_atomic(lockfile, repaired_lockfile(content, repairable))
+        result = Result.CHANGED
+        yield _event(
+            EventKind.MUTATION,
+            Operation.REPAIR,
+            "Updated .skill-lock.json",
+            action=EventAction.FILE,
+        )
+    yield _complete(
+        Report(
+            Operation.REPAIR,
+            result,
+            lockfile,
+            report.entries,
+            planned_changes=len(repairable),
+        )
+    )
+
+
+def adopt_events(
+    lockfile: str, ledger: str, dry_run: bool, yes: bool, runtime: Runtime
+) -> Iterator[ExecutionEvent]:
+    """Validate and record exact-path ownership for existing installations."""
+    yield _audit(Operation.ADOPT)
+    content, report = validated_lockfile(Operation.ADOPT, lockfile, runtime)
+    if report.result is not Result.OK:
+        yield _blocked(report)
+        yield _complete(report)
+        return
+
+    try:
+        ledger_content = adoption_ledger(
+            parse_lockfile(content), inventory_for(Operation.ADOPT, lockfile, runtime)
+        )
+    except OwnershipError as error:
+        blocked = Report(Operation.ADOPT, Result.BLOCKED, lockfile, error.refusals)
+        yield _blocked(blocked, ownership=True)
+        yield _complete(blocked)
+        return
+
+    should_change = yes and not dry_run
+    yield _event(
+        EventKind.PHASE,
+        Operation.ADOPT,
+        f"{'Adopting' if should_change else 'Planning adoption for'} {len(report.entries)} skills",
+        action=EventAction.BATCH,
+    )
+    result = Result.PLANNED
+    if should_change:
+        runtime.filesystem.write_atomic(ledger, ledger_content)
+        result = Result.CHANGED
+        yield _event(
+            EventKind.MUTATION,
+            Operation.ADOPT,
+            "Updated skill ownership ledger",
+            action=EventAction.FILE,
+        )
+    yield _complete(
+        Report(
+            Operation.ADOPT,
+            result,
+            lockfile,
+            report.entries,
+            planned_changes=len(report.entries),
+        )
+    )
+
+
+def prune_events(
+    lockfile: str, ledger: str, dry_run: bool, yes: bool, runtime: Runtime
+) -> Iterator[ExecutionEvent]:
+    """Remove only exact-path ledger entries absent from desired state."""
+    yield _event(
+        EventKind.PHASE,
+        Operation.PRUNE,
+        "Auditing managed skill inventory...",
+        action=EventAction.AUDIT,
+    )
+    desired = parse_lockfile(runtime.filesystem.read_text(lockfile))
+    managed = parse_ledger(runtime.filesystem.read_text(ledger))
+
+    try:
+        candidates = prune_candidates(
+            desired,
+            managed,
+            inventory_for(Operation.PRUNE, lockfile, runtime),
+        )
+    except OwnershipError as error:
+        blocked = Report(Operation.PRUNE, Result.BLOCKED, lockfile, error.refusals)
+        yield _blocked(blocked, ownership=True)
+        yield _complete(blocked)
+        return
+
+    entries = tuple(
+        Entry(
+            record.skill,
+            record.source,
+            Status.PRUNABLE,
+            f"managed installation at {record.path} is absent from desired state",
+        )
+        for record in candidates
+    )
+    if not candidates:
+        yield _complete(Report(Operation.PRUNE, Result.OK, lockfile, entries))
+        return
+    should_change = yes and not dry_run
+    yield _event(
+        EventKind.PHASE,
+        Operation.PRUNE,
+        f"{'Pruning' if should_change else 'Planning prune for'} {len(candidates)} skills",
+        action=EventAction.BATCH,
+    )
+    if not should_change:
+        yield _complete(
+            Report(
+                Operation.PRUNE,
+                Result.PLANNED,
+                lockfile,
+                entries,
+                planned_changes=len(candidates),
+            )
+        )
+        return
+
+    mutation = runtime.npx.remove_transaction(
+        tuple(record.skill for record in candidates)
+    )
+    require_success(mutation, Operation.PRUNE, lockfile, "removal")
+    try:
+        runtime.filesystem.write_atomic(ledger, ledger_without(managed, candidates))
+    except OSError as error:
+        try:
+            mutation.rollback()
+        except OSError as rollback_error:
+            raise AgentSkillError(
+                Operation.PRUNE,
+                lockfile,
+                "ownership ledger update failed",
+                f"{error}; rollback failed: {rollback_error}",
+            ) from rollback_error
+        raise AgentSkillError(
+            Operation.PRUNE, lockfile, "ownership ledger update failed", str(error)
+        ) from error
+    mutation.commit()
+    yield _event(
+        EventKind.MUTATION,
+        Operation.PRUNE,
+        "Reconciled local skill links",
+        action=EventAction.LINK,
+    )
+    yield _complete(
+        Report(
+            Operation.PRUNE,
+            Result.CHANGED,
+            lockfile,
+            entries,
+            planned_changes=len(candidates),
+        )
+    )
 
 
 def _operation_from(arguments: Sequence[str]) -> Operation:
@@ -120,12 +480,3 @@ def _option_value(arguments: Sequence[str], option: str) -> str | None:
         if argument.startswith(f"{option}="):
             return argument.partition("=")[2]
     return None
-
-
-def _verbosity_from(arguments: Sequence[str]) -> int:
-    return sum(
-        1 if argument in {"-v", "--verbose"} else len(argument) - 1
-        for argument in arguments
-        if argument in {"-v", "--verbose"}
-        or (argument.startswith("-") and set(argument[1:]) == {"v"})
-    )

@@ -31,6 +31,25 @@ class Status(StrEnum):
     PRUNABLE = "prunable"
 
 
+class EventAction(StrEnum):
+    AUDIT = "audit"
+    BATCH = "batch"
+    FETCH = "fetch"
+    FILE = "file"
+    LINK = "link"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+
+
+class EventKind(StrEnum):
+    PHASE = "phase"
+    PROGRESS = "progress"
+    MUTATION = "mutation"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+    COMPLETE = "complete"
+
+
 @dataclass(frozen=True)
 class Skill:
     name: str
@@ -67,6 +86,20 @@ class Entry:
             "status": self.status,
             "message": self.message,
         }
+
+
+@dataclass(frozen=True)
+class ExecutionEvent:
+    kind: EventKind
+    operation: Operation
+    message: str = ""
+    current: int | None = None
+    total: int | None = None
+    skill_id: str | None = None
+    report: "Report | None" = None
+    diagnostic: str = ""
+    debug: str = ""
+    action: EventAction | None = None
 
 
 @dataclass(frozen=True)
