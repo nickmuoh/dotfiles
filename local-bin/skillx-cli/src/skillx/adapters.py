@@ -40,6 +40,7 @@ class Mutation:
         self.result = result
         self._commit = commit or (lambda: None)
         self._rollback = rollback or (lambda: None)
+        self.has_rollback = rollback is not None
         self._finished = False
 
     def commit(self) -> None:

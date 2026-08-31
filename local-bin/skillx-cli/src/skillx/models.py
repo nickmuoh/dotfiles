@@ -17,8 +17,15 @@ class Result(StrEnum):
     OK = "ok"
     PLANNED = "planned"
     CHANGED = "changed"
+    DRIFT = "drift"
     BLOCKED = "blocked"
     FAILED = "failed"
+
+
+class FailureState(StrEnum):
+    NO_CHANGES = "no-changes"
+    ROLLED_BACK = "rolled-back"
+    RECOVERY_REQUIRED = "recovery-required"
 
 
 class Status(StrEnum):
@@ -109,12 +116,18 @@ class Report:
     lockfile: str
     entries: tuple[Entry, ...]
     planned_changes: int = 0
+    failure_state: FailureState = FailureState.NO_CHANGES
+    dry_run: bool = False
+    confirmation_requested: bool = False
+    confirmation_command: str = ""
 
     @property
     def exit_code(self) -> int:
         if self.result is Result.FAILED:
             return 2
         if self.result is Result.BLOCKED:
+            return 1
+        if self.result is Result.DRIFT:
             return 1
         if self.result is Result.PLANNED and self.operation in {
             Operation.REPAIR,
@@ -128,14 +141,17 @@ class Report:
         return 0
 
     def to_dict(self) -> dict[str, object]:
+        summary: dict[str, object] = {
+            "valid": sum(entry.status is Status.VALID for entry in self.entries),
+            "planned_changes": self.planned_changes,
+        }
+        if self.result is Result.FAILED:
+            summary["failure_state"] = self.failure_state
         return {
             "schema_version": 1,
             "operation": self.operation,
             "result": self.result,
             "lockfile": self.lockfile,
-            "summary": {
-                "valid": sum(entry.status is Status.VALID for entry in self.entries),
-                "planned_changes": self.planned_changes,
-            },
+            "summary": summary,
             "entries": [entry.to_dict() for entry in self.entries],
         }

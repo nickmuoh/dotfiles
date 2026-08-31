@@ -4,7 +4,17 @@ import json
 from collections.abc import Iterable
 from typing import TextIO
 
-from .models import EventAction, EventKind, ExecutionEvent, Operation, Report, Result
+from .models import (
+    EventAction,
+    EventKind,
+    Entry,
+    ExecutionEvent,
+    FailureState,
+    Operation,
+    Report,
+    Result,
+    Status,
+)
 
 BLUE_BOLD = "\x1b[1;34m"
 DIM = "\x1b[2m"
@@ -99,6 +109,7 @@ class Renderer:
             self._diagnose_failure(event)
         elif event.kind is EventKind.COMPLETE and event.report is not None:
             self._finish_progress()
+            self._findings(event.report)
             self._summary(event.report)
             if self.verbosity:
                 self._diagnose_report(event.report)
@@ -112,22 +123,60 @@ class Renderer:
     def _summary(self, report: Report) -> None:
         planned = report.planned_changes
         if report.result is Result.FAILED:
-            self._line("Result: FAILED; 0 change(s).")
+            if report.failure_state is FailureState.ROLLED_BACK:
+                self._line("Result: FAILED; Changes were rolled back safely.")
+            elif report.failure_state is FailureState.RECOVERY_REQUIRED:
+                self._line(
+                    "Result: FAILED; rollback failed, so manual recovery may be needed."
+                )
+            else:
+                self._line("Result: FAILED; no changes were made.")
+            return
+        if report.result is Result.DRIFT:
+            unavailable = sum(
+                entry.status is not Status.VALID for entry in report.entries
+            )
+            noun = "skill is" if unavailable == 1 else "skills are"
+            self._line(
+                f"⚠ Check completed: {unavailable} requested {noun} unavailable."
+            )
+            self._line("Result: DRIFT; 0 change(s).")
             return
         if report.result is Result.BLOCKED:
             self._line(f"Result: BLOCKED; {planned} change(s).")
             return
         if report.result is Result.PLANNED:
-            self._line(
-                f"✨ Dry run complete. {planned} change(s) planned; nothing was changed."
-            )
+            if report.dry_run:
+                self._line(
+                    f"✨ Dry run complete. {planned} change(s) planned; nothing was changed."
+                )
+            else:
+                self._line(
+                    f"✨ Plan ready; {planned} change(s) require confirmation; nothing was changed."
+                )
             self._line(f"Result: PLANNED; {planned} change(s).")
             return
         if report.operation is Operation.CHECK and report.result is Result.OK:
             self._line(
-                f"✨ All {len(report.entries)} requested skills are valid and up-to-date."
+                f"✨ All {len(report.entries)} requested skills are available from their sources."
             )
             self._line("Result: OK; 0 change(s) needed.")
+            return
+        if report.operation is Operation.SYNC and report.result is Result.OK:
+            self._line("✨ No requested skills; nothing changed.")
+            self._line("Result: OK; 0 change(s).")
+            return
+        if report.operation is Operation.REPAIR and report.result is Result.OK:
+            self._line("✨ No confirmed-invalid lock entries; lockfile unchanged.")
+            self._line("Result: OK; 0 change(s).")
+            return
+        if report.operation is Operation.ADOPT and report.result is Result.OK:
+            self._line("✨ No requested skills to adopt; ownership ledger unchanged.")
+            self._line("Result: OK; 0 change(s).")
+            return
+        if report.operation is Operation.PRUNE and report.result is Result.OK:
+            self._line("✨ No managed skills require pruning; ownership ledger unchanged.")
+            self._line("Result: OK; 0 change(s).")
             return
         if report.result is Result.OK:
             self._line("✨ No changes needed.")
@@ -140,8 +189,142 @@ class Renderer:
             Operation.ADOPT: "Adopted",
             Operation.PRUNE: "Pruned",
         }.get(report.operation, "Completed")
-        self._line(f"🎉 {action} {planned} skills. (0 errors)")
+        noun = "skill" if planned == 1 else "skills"
+        self._line(f"🎉 {action} {planned} {noun}.")
         self._line(f"Result: CHANGED; {planned} change(s).")
+
+    def _findings(self, report: Report) -> None:
+        """Show actionable drift without turning successful checks into a listing."""
+        if report.result in {Result.BLOCKED, Result.DRIFT}:
+            findings = tuple(
+                entry for entry in report.entries if entry.status is not Status.VALID
+            )
+        elif report.operation is Operation.REPAIR:
+            findings = tuple(
+                entry
+                for entry in report.entries
+                if entry.status
+                in {
+                    Status.CONFIRMED_MISSING_SOURCE,
+                    Status.CONFIRMED_MISSING_SKILL,
+                    Status.CONFIRMED_INVALID_SOURCE,
+                }
+            )
+        elif report.operation is Operation.PRUNE:
+            findings = tuple(
+                entry for entry in report.entries if entry.status is Status.PRUNABLE
+            )
+        elif report.operation is Operation.ADOPT:
+            findings = report.entries
+        elif report.operation is Operation.SYNC and report.result is Result.PLANNED:
+            findings = report.entries
+        else:
+            return
+        if not findings:
+            return
+
+        if report.result is Result.BLOCKED:
+            heading = "Unresolved skills:"
+        elif report.result is Result.DRIFT:
+            heading = "Unavailable skills:"
+        elif report.operation is Operation.ADOPT:
+            heading = (
+                "Ownership records written:"
+                if report.result is Result.CHANGED
+                else "Planned ownership records:"
+            )
+        elif report.operation is Operation.SYNC:
+            heading = "Planned installations:"
+        else:
+            heading = (
+                "Applied changes:"
+                if report.result is Result.CHANGED
+                else "Planned changes:"
+            )
+        self._line(heading)
+        for entry in findings:
+            marker = "✓" if report.operation is Operation.ADOPT else "✗"
+            self._line(f"  {marker} {entry.source} -> {entry.skill}")
+            message = (
+                "will install or update this requested skill"
+                if report.operation is Operation.SYNC
+                and report.result is Result.PLANNED
+                else entry.message
+            )
+            self._line(f"    {message}")
+
+        if report.result in {Result.BLOCKED, Result.DRIFT}:
+            self._next_step_for_blocked(findings)
+        elif report.operation is Operation.REPAIR and report.result is Result.PLANNED:
+            if report.dry_run and report.confirmation_requested:
+                self._line(
+                    "Next: `--dry-run` overrode `--yes`; rerun without `--dry-run` to apply this plan."
+                )
+            else:
+                self._line(
+                    f"Next: run `{report.confirmation_command}` to back up the lockfile and apply this plan."
+                )
+        elif report.operation is Operation.PRUNE and report.result is Result.PLANNED:
+            if report.dry_run and report.confirmation_requested:
+                self._line(
+                    "Next: `--dry-run` overrode `--yes`; rerun without `--dry-run` to apply this plan."
+                )
+            else:
+                self._line(
+                    f"Next: run `{report.confirmation_command}` to apply this plan."
+                )
+        elif report.operation is Operation.ADOPT and report.result is Result.PLANNED:
+            if report.dry_run and report.confirmation_requested:
+                self._line(
+                    "Next: `--dry-run` overrode `--yes`; rerun without `--dry-run` to write these records."
+                )
+            else:
+                self._line(
+                    f"Next: run `{report.confirmation_command}` to write these records."
+                )
+
+        if report.operation is Operation.REPAIR and report.result is Result.CHANGED:
+            remaining = tuple(
+                entry
+                for entry in report.entries
+                if entry.status is Status.INDETERMINATE
+            )
+            if remaining:
+                self._line("Still unresolved:")
+                for entry in remaining:
+                    self._line(f"  ✗ {entry.source} -> {entry.skill}")
+                    self._line(f"    {entry.message}")
+                self._line(
+                    "Next: retry when source access is available; indeterminate entries are preserved."
+                )
+
+    def _next_step_for_blocked(self, findings: tuple[Entry, ...]) -> None:
+        statuses = {entry.status for entry in findings}
+        indeterminate = Status.INDETERMINATE in statuses
+        repairable = bool(
+            statuses
+            & {
+                Status.CONFIRMED_MISSING_SOURCE,
+                Status.CONFIRMED_MISSING_SKILL,
+                Status.CONFIRMED_INVALID_SOURCE,
+            }
+        )
+        if repairable and indeterminate:
+            self._line(
+                "Next: `skillx repair` previews removal of confirmed-invalid entries; retry or fix access for the others."
+            )
+        elif repairable:
+            self._line(
+                "Next: `skillx repair` previews removal of these confirmed-invalid lock entries."
+            )
+        elif indeterminate:
+            self._line(
+                "Next: retry when source access is available; indeterminate entries are preserved."
+            )
+        elif Status.AMBIGUOUS_OWNERSHIP in statuses:
+            self._line(
+                "Next: review the ownership ledger and installed skill metadata; nothing was removed."
+            )
 
     def _finish_progress(self) -> None:
         if self.progress_open:

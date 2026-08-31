@@ -3,6 +3,7 @@ from __future__ import annotations
 import traceback
 from argparse import Namespace
 from collections.abc import Callable, Iterable, Iterator, Sequence
+from shlex import join as shell_join
 
 from .adapters import CommandResult, InstallRequest, Mutation, Runtime
 from .models import (
@@ -10,6 +11,7 @@ from .models import (
     EventAction,
     EventKind,
     ExecutionEvent,
+    FailureState,
     InstalledSkill,
     Operation,
     Report,
@@ -41,11 +43,13 @@ class AgentSkillError(RuntimeError):
         lockfile: str,
         message: str,
         diagnostics: str = "",
+        failure_state: FailureState = FailureState.NO_CHANGES,
     ) -> None:
         super().__init__(message)
         self.operation = operation
         self.lockfile = lockfile
         self.diagnostics = diagnostics
+        self.failure_state = failure_state
 
 
 def execute(handler: CommandHandler, args: Namespace) -> Iterator[ExecutionEvent]:
@@ -101,7 +105,13 @@ def _failure_events(error: AgentSkillError) -> Iterator[ExecutionEvent]:
     yield ExecutionEvent(
         EventKind.COMPLETE,
         error.operation,
-        report=Report(error.operation, Result.FAILED, error.lockfile, ()),
+        report=Report(
+            error.operation,
+            Result.FAILED,
+            error.lockfile,
+            (),
+            failure_state=error.failure_state,
+        ),
     )
 
 
@@ -137,6 +147,14 @@ def _audit(operation: Operation) -> ExecutionEvent:
         "Auditing desired skill inventory...",
         action=EventAction.AUDIT,
     )
+
+
+def _skill_count(count: int) -> str:
+    return f"{count} skill{'s' if count != 1 else ''}"
+
+
+def _confirmation_command(*arguments: str) -> str:
+    return shell_join(("skillx", *arguments))
 
 
 def _blocked(report: Report, *, ownership: bool = False) -> ExecutionEvent:
@@ -193,18 +211,29 @@ def require_success(
         return
 
     diagnostics = command_diagnostics(mutation.result)
+    if not mutation.has_rollback:
+        raise AgentSkillError(operation, lockfile, f"{action} failed", diagnostics)
     try:
         mutation.rollback()
     except OSError as error:
         diagnostics = f"{diagnostics}; rollback failed: {error}"
-    raise AgentSkillError(operation, lockfile, f"{action} failed", diagnostics)
+        failure_state = FailureState.RECOVERY_REQUIRED
+    else:
+        failure_state = FailureState.ROLLED_BACK
+    raise AgentSkillError(
+        operation,
+        lockfile,
+        f"{action} failed",
+        diagnostics,
+        failure_state,
+    )
 
 
 def check_events(lockfile: str, runtime: Runtime) -> Iterator[ExecutionEvent]:
     """Report source and skill classifications without changing state."""
     yield _audit(Operation.CHECK)
     _, report = validated_lockfile(Operation.CHECK, lockfile, runtime)
-    if report.result is not Result.OK:
+    if report.result is Result.BLOCKED:
         yield _blocked(report)
     yield _complete(report)
 
@@ -219,6 +248,9 @@ def sync_events(
         yield _blocked(report)
         yield _complete(report)
         return
+    if not report.entries:
+        yield _complete(report)
+        return
 
     synced = Report(
         Operation.SYNC,
@@ -226,11 +258,12 @@ def sync_events(
         lockfile,
         report.entries,
         planned_changes=len(report.entries),
+        dry_run=dry_run,
     )
     action = (
-        f"Planning sync for {len(report.entries)} requested skills"
+        f"Planning sync for {_skill_count(len(report.entries))}"
         if dry_run
-        else f"Syncing {len(report.entries)} requested skills"
+        else f"Syncing {_skill_count(len(report.entries))}"
     )
     yield _event(EventKind.PHASE, Operation.SYNC, action, action=EventAction.BATCH)
     if dry_run:
@@ -261,14 +294,9 @@ def sync_events(
     yield _event(
         EventKind.MUTATION,
         Operation.SYNC,
-        "Updated .skill-lock.json",
-        action=EventAction.FILE,
-    )
-    yield _event(
-        EventKind.MUTATION,
-        Operation.SYNC,
-        "Reconciled local skill links",
-        action=EventAction.LINK,
+        f"Installed or updated {len(report.entries)} requested skill"
+        f"{'s' if len(report.entries) != 1 else ''}",
+        action=EventAction.BATCH,
     )
     yield _complete(synced)
 
@@ -299,18 +327,25 @@ def repair_events(
     yield _event(
         EventKind.PHASE,
         Operation.REPAIR,
-        f"{'Repairing' if should_change else 'Planning repair for'} {len(repairable)} skills",
+        f"{'Repairing' if should_change else 'Planning repair for'} {_skill_count(len(repairable))}",
         action=EventAction.FILE,
     )
     result = Result.PLANNED
     if should_change:
-        runtime.filesystem.copy(lockfile, f"{lockfile}.{runtime.now()}.bak")
+        backup = f"{lockfile}.{runtime.now()}.bak"
+        runtime.filesystem.copy(lockfile, backup)
+        yield _event(
+            EventKind.MUTATION,
+            Operation.REPAIR,
+            f"Backed up {lockfile} to {backup}",
+            action=EventAction.FILE,
+        )
         runtime.filesystem.write_atomic(lockfile, repaired_lockfile(content, repairable))
         result = Result.CHANGED
         yield _event(
             EventKind.MUTATION,
             Operation.REPAIR,
-            "Updated .skill-lock.json",
+            f"Updated {lockfile}",
             action=EventAction.FILE,
         )
     yield _complete(
@@ -320,6 +355,11 @@ def repair_events(
             lockfile,
             report.entries,
             planned_changes=len(repairable),
+            dry_run=dry_run,
+            confirmation_requested=yes,
+            confirmation_command=_confirmation_command(
+                "repair", "--lockfile", lockfile, "--yes"
+            ),
         )
     )
 
@@ -334,6 +374,9 @@ def adopt_events(
         yield _blocked(report)
         yield _complete(report)
         return
+    if not report.entries:
+        yield _complete(report)
+        return
 
     try:
         ledger_content = adoption_ledger(
@@ -345,11 +388,21 @@ def adopt_events(
         yield _complete(blocked)
         return
 
+    adoption_entries = tuple(
+        Entry(
+            record.skill,
+            record.source,
+            Status.VALID,
+            f"ownership path {record.path} will be recorded in {ledger}",
+        )
+        for record in parse_ledger(ledger_content)
+    )
+
     should_change = yes and not dry_run
     yield _event(
         EventKind.PHASE,
         Operation.ADOPT,
-        f"{'Adopting' if should_change else 'Planning adoption for'} {len(report.entries)} skills",
+        f"{'Adopting' if should_change else 'Planning adoption for'} {_skill_count(len(report.entries))}",
         action=EventAction.BATCH,
     )
     result = Result.PLANNED
@@ -359,7 +412,7 @@ def adopt_events(
         yield _event(
             EventKind.MUTATION,
             Operation.ADOPT,
-            "Updated skill ownership ledger",
+            f"Updated ownership ledger: {ledger}",
             action=EventAction.FILE,
         )
     yield _complete(
@@ -367,8 +420,19 @@ def adopt_events(
             Operation.ADOPT,
             result,
             lockfile,
-            report.entries,
-            planned_changes=len(report.entries),
+            adoption_entries,
+            planned_changes=len(adoption_entries),
+            dry_run=dry_run,
+            confirmation_requested=yes,
+            confirmation_command=_confirmation_command(
+                "adopt",
+                "--from-lock",
+                "--lockfile",
+                lockfile,
+                "--ledger",
+                ledger,
+                "--yes",
+            ),
         )
     )
 
@@ -414,7 +478,7 @@ def prune_events(
     yield _event(
         EventKind.PHASE,
         Operation.PRUNE,
-        f"{'Pruning' if should_change else 'Planning prune for'} {len(candidates)} skills",
+        f"{'Pruning' if should_change else 'Planning prune for'} {_skill_count(len(candidates))}",
         action=EventAction.BATCH,
     )
     if not should_change:
@@ -425,6 +489,16 @@ def prune_events(
                 lockfile,
                 entries,
                 planned_changes=len(candidates),
+                dry_run=dry_run,
+                confirmation_requested=yes,
+                confirmation_command=_confirmation_command(
+                    "prune",
+                    "--lockfile",
+                    lockfile,
+                    "--ledger",
+                    ledger,
+                    "--yes",
+                ),
             )
         )
         return
@@ -444,16 +518,28 @@ def prune_events(
                 lockfile,
                 "ownership ledger update failed",
                 f"{error}; rollback failed: {rollback_error}",
+                FailureState.RECOVERY_REQUIRED,
             ) from rollback_error
         raise AgentSkillError(
-            Operation.PRUNE, lockfile, "ownership ledger update failed", str(error)
+            Operation.PRUNE,
+            lockfile,
+            "ownership ledger update failed",
+            str(error),
+            FailureState.ROLLED_BACK,
         ) from error
     mutation.commit()
     yield _event(
         EventKind.MUTATION,
         Operation.PRUNE,
-        "Reconciled local skill links",
-        action=EventAction.LINK,
+        f"Removed {len(candidates)} managed skill"
+        f"{'s' if len(candidates) != 1 else ''}",
+        action=EventAction.BATCH,
+    )
+    yield _event(
+        EventKind.MUTATION,
+        Operation.PRUNE,
+        f"Updated ownership ledger: {ledger}",
+        action=EventAction.FILE,
     )
     yield _complete(
         Report(
@@ -462,6 +548,16 @@ def prune_events(
             lockfile,
             entries,
             planned_changes=len(candidates),
+            dry_run=dry_run,
+            confirmation_requested=yes,
+            confirmation_command=_confirmation_command(
+                "prune",
+                "--lockfile",
+                lockfile,
+                "--ledger",
+                ledger,
+                "--yes",
+            ),
         )
     )
 

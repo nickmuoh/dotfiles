@@ -145,11 +145,14 @@ def validate(
         )
 
     entries = tuple(entry_for(skill) for skill in skills)
-    result = (
-        Result.OK
-        if all(entry.status is Status.VALID for entry in entries)
-        else Result.BLOCKED
-    )
+    if all(entry.status is Status.VALID for entry in entries):
+        result = Result.OK
+    elif operation is Operation.CHECK and all(
+        entry.status is not Status.INDETERMINATE for entry in entries
+    ):
+        result = Result.DRIFT
+    else:
+        result = Result.BLOCKED
     return Report(operation, result, lockfile, entries)
 
 
