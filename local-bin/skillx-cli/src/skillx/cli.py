@@ -5,10 +5,11 @@ from argparse import Action
 from argparse import ArgumentParser as BaseArgParser
 from enum import Enum
 from functools import wraps
+from inspect import signature
 from typing import Any, Callable, Generic, NoReturn, Optional, Sequence, TypeVar
 
 F = TypeVar("F")
-ArgParseCallable = Callable[..., None]
+ArgParseCallable = Callable[..., object]
 
 TERM_CODE_REGEX = re.compile(r"\[\d{1,2}m")
 TERM_COLOR_CODE_REGEX = re.compile(r"(.{2})(?=\[\d{1,2}m)")
@@ -86,6 +87,7 @@ class ArgumentParser(BaseArgParser):
 
         def decorator(func: ArgParseCallable):
             group_store: dict[object, Any] = {}
+            parameter_names = set(signature(func).parameters)
             func_name = func.__name__.replace("_", "-")
             cmd_parser = self.sub_parser.add_parser(
                 func_name, description=func.__doc__, help=help, parents=parents_
@@ -93,7 +95,12 @@ class ArgumentParser(BaseArgParser):
 
             @wraps(func)
             def wrapper(kwargs):
-                return func(**{"cmd_parser": cmd_parser, **vars(kwargs)})
+                command_arguments = {
+                    name: value
+                    for name, value in vars(kwargs).items()
+                    if name in parameter_names
+                }
+                return func(**command_arguments)
 
             for args in arguments:
                 cmd_args, cmd_kwargs = args

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Literal
+from enum import StrEnum
 
 from .adapters import Npx
 from .models import (
@@ -18,14 +18,20 @@ from .models import (
 
 
 class ConfigurationError(ValueError):
-    pass
+    """Raised when a required skillx document is malformed or unusable."""
+
+
+class SourceState(StrEnum):
+    ENUMERATED = "enumerated"
 
 
 class OwnershipError(ConfigurationError):
+    """Raised when installed state cannot be safely attributed to skillx."""
+
     def __init__(self, refusals: tuple[Entry, ...]) -> None:
         self.refusals = refusals
         super().__init__(
-            "prune ownership is ambiguous: " + "; ".join(r.message for r in refusals)
+            "ownership is ambiguous: " + "; ".join(r.message for r in refusals)
         )
 
 
@@ -73,36 +79,39 @@ def _listed_names(output: str) -> set[str] | None:
 
 
 def validate(
-    lockfile: str, content: str, npx: Npx, operation: Operation = "check"
+    lockfile: str,
+    content: str,
+    npx: Npx,
+    operation: Operation = Operation.CHECK,
 ) -> Report:
     skills = parse_lockfile(content)
-    source_states: dict[str, tuple[Status | Literal["enumerated"], set[str]]] = {}
+    source_states: dict[str, tuple[Status | SourceState, set[str]]] = {}
     source_diagnostics: dict[str, str] = {}
     for source in dict.fromkeys(skill.source for skill in skills):
         command_result = npx.enumerate_source(source)
         diagnostics = f"{command_result.stdout}\n{command_result.stderr}"
         source_diagnostics[source] = diagnostics.strip()
-        if command_result.classification == "confirmed-missing-source":
-            source_states[source] = ("confirmed-missing-source", set())
+        if command_result.classification == Status.CONFIRMED_MISSING_SOURCE:
+            source_states[source] = (Status.CONFIRMED_MISSING_SOURCE, set())
         elif command_result.returncode != 0 and "No valid skills found." in diagnostics:
-            source_states[source] = ("confirmed-invalid-source/no-valid-skills", set())
+            source_states[source] = (Status.CONFIRMED_INVALID_SOURCE, set())
         elif command_result.returncode != 0:
-            source_states[source] = ("indeterminate", set())
+            source_states[source] = (Status.INDETERMINATE, set())
         else:
             names = _listed_names(command_result.stdout)
             if names is None:
-                source_states[source] = ("indeterminate", set())
+                source_states[source] = (Status.INDETERMINATE, set())
             elif not names:
                 source_states[source] = (
-                    "confirmed-invalid-source/no-valid-skills",
+                    Status.CONFIRMED_INVALID_SOURCE,
                     set(),
                 )
             else:
-                source_states[source] = ("enumerated", names)
+                source_states[source] = (SourceState.ENUMERATED, names)
 
     def entry_for(skill: Skill) -> Entry:
         source_status, names = source_states[skill.source]
-        if source_status == "confirmed-missing-source":
+        if source_status is Status.CONFIRMED_MISSING_SOURCE:
             return Entry(
                 skill.name,
                 skill.source,
@@ -110,7 +119,7 @@ def validate(
                 "authoritative provider response confirms the source is missing",
                 source_diagnostics[skill.source],
             )
-        if source_status == "confirmed-invalid-source/no-valid-skills":
+        if source_status is Status.CONFIRMED_INVALID_SOURCE:
             return Entry(
                 skill.name,
                 skill.source,
@@ -118,32 +127,34 @@ def validate(
                 "source contains no valid discoverable skills",
                 source_diagnostics[skill.source],
             )
-        if source_status == "indeterminate":
+        if source_status is Status.INDETERMINATE:
             return Entry(
                 skill.name,
                 skill.source,
-                "indeterminate",
+                Status.INDETERMINATE,
                 "source could not be validated",
                 source_diagnostics[skill.source],
             )
         if skill.name.casefold() in names:
-            return Entry(skill.name, skill.source, "valid", "skill is available")
+            return Entry(skill.name, skill.source, Status.VALID, "skill is available")
         return Entry(
             skill.name,
             skill.source,
-            "confirmed-missing-skill",
+            Status.CONFIRMED_MISSING_SKILL,
             "skill is not available from source",
         )
 
     entries = tuple(entry_for(skill) for skill in skills)
-    result: Result = (
-        "ok" if all(entry.status == "valid" for entry in entries) else "blocked"
+    result = (
+        Result.OK
+        if all(entry.status is Status.VALID for entry in entries)
+        else Result.BLOCKED
     )
     return Report(operation, result, lockfile, entries)
 
 
 def check(lockfile: str, content: str, npx: Npx) -> Report:
-    return validate(lockfile, content, npx)
+    return validate(lockfile, content, npx, Operation.CHECK)
 
 
 def repaired_lockfile(content: str, names: set[str]) -> str:
@@ -219,13 +230,27 @@ def adoption_ledger(
             item for item in inventory if item.name.casefold() == skill.name.casefold()
         ]
         if len(candidates) != 1:
-            raise ConfigurationError(
-                f"cannot adopt {skill.name!r}: expected one installed path, found {len(candidates)}"
+            raise OwnershipError(
+                (
+                    Entry(
+                        skill.name,
+                        skill.source,
+                        Status.AMBIGUOUS_OWNERSHIP,
+                        f"expected one installed path, found {len(candidates)}",
+                    ),
+                )
             )
         installed = candidates[0]
         if not _source_matches(skill.source, installed):
-            raise ConfigurationError(
-                f"cannot adopt {skill.name!r}: installed source does not match desired source"
+            raise OwnershipError(
+                (
+                    Entry(
+                        skill.name,
+                        skill.source,
+                        Status.AMBIGUOUS_OWNERSHIP,
+                        "installed source does not match desired source",
+                    ),
+                )
             )
         records.append(
             {"skill": skill.name, "source": skill.source, "path": installed.path}
@@ -300,7 +325,7 @@ def prune_candidates(
                 Entry(
                     record.skill,
                     record.source,
-                    "ambiguous-ownership",
+                    Status.AMBIGUOUS_OWNERSHIP,
                     f"expected one inventory entry named {record.skill}, found {len(name_matches)}",
                 )
             )
@@ -313,7 +338,7 @@ def prune_candidates(
                 Entry(
                     record.skill,
                     record.source,
-                    "ambiguous-ownership",
+                    Status.AMBIGUOUS_OWNERSHIP,
                     f"expected one inventory entry at {record.path}, found {len(matches)}",
                 )
             )
@@ -324,7 +349,7 @@ def prune_candidates(
                 Entry(
                     record.skill,
                     record.source,
-                    "ambiguous-ownership",
+                    Status.AMBIGUOUS_OWNERSHIP,
                     "installed name conflicts with ledger",
                 )
             )
@@ -333,7 +358,7 @@ def prune_candidates(
                 Entry(
                     record.skill,
                     record.source,
-                    "ambiguous-ownership",
+                    Status.AMBIGUOUS_OWNERSHIP,
                     "installed source conflicts with ledger",
                 )
             )

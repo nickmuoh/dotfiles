@@ -337,7 +337,7 @@ class SkillxCommandTests(unittest.TestCase):
             ["confirmed-missing-skill", "indeterminate"],
         )
 
-    def test_json_configuration_failure_keeps_stdout_machine_readable(self) -> None:
+    def test_json_configuration_failure_is_quiet_without_verbosity(self) -> None:
         runtime, filesystem, _, stdout, stderr = self.runtime({"skills": {}})
         filesystem.files["/config/lock.json"] = "not-json"
 
@@ -346,7 +346,7 @@ class SkillxCommandTests(unittest.TestCase):
         )
 
         self.assertEqual(exit_code, 2)
-        self.assertIn("invalid lockfile JSON", stderr.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
         self.assertEqual(
             json.loads(stdout.getvalue()),
             {
@@ -358,6 +358,20 @@ class SkillxCommandTests(unittest.TestCase):
                 "entries": [],
             },
         )
+
+    def test_double_verbose_configuration_failure_includes_a_traceback(self) -> None:
+        runtime, filesystem, _, stdout, stderr = self.runtime({"skills": {}})
+        filesystem.files["/config/lock.json"] = "not-json"
+
+        exit_code = main(
+            ["check", "--lockfile", "/config/lock.json", "--json", "-vv"],
+            runtime=runtime,
+        )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(json.loads(stdout.getvalue())["result"], "failed")
+        self.assertIn("invalid lockfile JSON", stderr.getvalue())
+        self.assertIn("Traceback", stderr.getvalue())
 
     def test_check_parses_upstream_list_text_case_insensitively(self) -> None:
         runtime, _, npx, stdout, _ = self.runtime(
@@ -452,7 +466,7 @@ class SkillxCommandTests(unittest.TestCase):
         )
 
         self.assertEqual(exit_code, 1)
-        self.assertIn("ambiguous", stderr.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
         self.assertEqual(npx.mutations, [])
         output = json.loads(stdout.getvalue())
         self.assertEqual(output["result"], "blocked")
@@ -557,11 +571,13 @@ class SkillxCommandTests(unittest.TestCase):
         )
 
         self.assertEqual(exit_code, 1)
-        self.assertIn("does not match", stderr.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
         self.assertNotIn("/config/managed.json", filesystem.files)
-        self.assertEqual(json.loads(stdout.getvalue())["result"], "blocked")
+        output = json.loads(stdout.getvalue())
+        self.assertEqual(output["result"], "blocked")
+        self.assertIn("does not match", output["entries"][0]["message"])
 
-    def test_sync_mutation_failure_returns_machine_readable_exit_two(self) -> None:
+    def test_verbose_sync_mutation_failure_includes_diagnostics(self) -> None:
         runtime, _, npx, stdout, stderr = self.runtime(
             {"skills": {"one": {"source": "owner/source"}}}
         )
@@ -572,11 +588,13 @@ class SkillxCommandTests(unittest.TestCase):
         npx.install_result = CommandResult(1, "", "disk full")
 
         exit_code = main(
-            ["sync", "--lockfile", "/config/lock.json", "--json"], runtime=runtime
+            ["sync", "--lockfile", "/config/lock.json", "--json", "-v"],
+            runtime=runtime,
         )
 
         self.assertEqual(exit_code, 2)
         self.assertIn("disk full", stderr.getvalue())
+        self.assertIn("install failed", stderr.getvalue())
         self.assertEqual(json.loads(stdout.getvalue())["result"], "failed")
         self.assertEqual(npx.transaction_events, ["install-rollback"])
 
@@ -600,7 +618,7 @@ class SkillxCommandTests(unittest.TestCase):
             "confirmed-invalid-source/no-valid-skills",
         )
 
-    def test_json_usage_error_still_emits_one_json_document(self) -> None:
+    def test_json_usage_error_is_quiet_and_emits_one_json_document(self) -> None:
         runtime, _, _, stdout, stderr = self.runtime({"skills": {}})
 
         exit_code = main(
@@ -609,8 +627,20 @@ class SkillxCommandTests(unittest.TestCase):
         )
 
         self.assertEqual(exit_code, 2)
-        self.assertIn("unrecognized arguments", stderr.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
         self.assertEqual(json.loads(stdout.getvalue())["result"], "failed")
+
+    def test_verbose_usage_error_includes_parser_diagnostics(self) -> None:
+        runtime, _, _, stdout, stderr = self.runtime({"skills": {}})
+
+        exit_code = main(
+            ["check", "--lockfile", "/config/lock.json", "--json", "-v", "--bad-option"],
+            runtime=runtime,
+        )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(json.loads(stdout.getvalue())["result"], "failed")
+        self.assertIn("unrecognized arguments", stderr.getvalue())
 
     def test_authoritative_missing_source_classification_is_repairable(self) -> None:
         runtime, _, npx, stdout, _ = self.runtime(
@@ -677,7 +707,7 @@ class SkillxCommandTests(unittest.TestCase):
         )
 
         self.assertEqual(exit_code, 2)
-        self.assertIn("cannot write", stderr.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
         self.assertEqual(json.loads(stdout.getvalue())["result"], "failed")
         self.assertEqual(npx.transaction_events, ["remove-rollback"])
 

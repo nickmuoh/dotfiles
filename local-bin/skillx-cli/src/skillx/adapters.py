@@ -7,10 +7,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Literal, Mapping, Protocol, TextIO
+from typing import Literal, Protocol, TextIO
 
 
 @dataclass(frozen=True)

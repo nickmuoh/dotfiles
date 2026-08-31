@@ -1,19 +1,34 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from enum import StrEnum
 
-Operation = Literal["check", "sync", "repair", "adopt", "prune", "unknown"]
-Result = Literal["ok", "planned", "changed", "blocked", "failed"]
-Status = Literal[
-    "valid",
-    "indeterminate",
-    "confirmed-missing-source",
-    "confirmed-missing-skill",
-    "confirmed-invalid-source/no-valid-skills",
-    "ambiguous-ownership",
-    "prunable",
-]
+
+class Operation(StrEnum):
+    CHECK = "check"
+    SYNC = "sync"
+    REPAIR = "repair"
+    ADOPT = "adopt"
+    PRUNE = "prune"
+    UNKNOWN = "unknown"
+
+
+class Result(StrEnum):
+    OK = "ok"
+    PLANNED = "planned"
+    CHANGED = "changed"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+
+
+class Status(StrEnum):
+    VALID = "valid"
+    INDETERMINATE = "indeterminate"
+    CONFIRMED_MISSING_SOURCE = "confirmed-missing-source"
+    CONFIRMED_MISSING_SKILL = "confirmed-missing-skill"
+    CONFIRMED_INVALID_SOURCE = "confirmed-invalid-source/no-valid-skills"
+    AMBIGUOUS_OWNERSHIP = "ambiguous-ownership"
+    PRUNABLE = "prunable"
 
 
 @dataclass(frozen=True)
@@ -64,14 +79,17 @@ class Report:
 
     @property
     def exit_code(self) -> int:
-        if self.result == "failed":
+        if self.result is Result.FAILED:
             return 2
-        if self.result == "blocked":
+        if self.result is Result.BLOCKED:
             return 1
-        if self.result == "planned" and self.operation in {"repair", "prune"}:
+        if self.result is Result.PLANNED and self.operation in {
+            Operation.REPAIR,
+            Operation.PRUNE,
+        }:
             return 1
-        if self.operation == "repair" and any(
-            entry.status == "indeterminate" for entry in self.entries
+        if self.operation is Operation.REPAIR and any(
+            entry.status is Status.INDETERMINATE for entry in self.entries
         ):
             return 1
         return 0
@@ -83,7 +101,7 @@ class Report:
             "result": self.result,
             "lockfile": self.lockfile,
             "summary": {
-                "valid": sum(entry.status == "valid" for entry in self.entries),
+                "valid": sum(entry.status is Status.VALID for entry in self.entries),
                 "planned_changes": self.planned_changes,
             },
             "entries": [entry.to_dict() for entry in self.entries],
