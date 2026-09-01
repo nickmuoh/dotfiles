@@ -1,5 +1,5 @@
 ---
-name: technical-english
+name: in-ste
 description: Rewrite responses in clear ASD-STE100 Simplified Technical English.
 disable-model-invocation: true
 ---

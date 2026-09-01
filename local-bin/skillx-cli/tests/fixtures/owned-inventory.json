@@ -1,0 +1,13 @@
+[
+  {
+    "name": "one",
+    "path": "/agents/skills/one",
+    "scope": "global",
+    "agents": [
+      "Codex"
+    ],
+    "source": "owner/source",
+    "sourceUrl": "https://github.com/owner/source.git",
+    "sourceType": "github"
+  }
+]

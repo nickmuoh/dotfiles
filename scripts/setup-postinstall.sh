@@ -41,16 +41,16 @@ else
   status skip "uv not found; skipping Python 3.12 reminder"
 fi
 
-repo_sync_helper="$(bootstrap_root)/local-bin/.local/bin/sync-agent-skills"
+repo_skillx="$(bootstrap_root)/local-bin/.local/bin/skillx"
 
-sync_agent_skills_cmd() {
-  if command -v sync-agent-skills >/dev/null 2>&1; then
-    printf '%s\n' sync-agent-skills
+skillx_cmd() {
+  if command -v skillx >/dev/null 2>&1; then
+    printf '%s\n' skillx
     return 0
   fi
 
-  if [ -x "$repo_sync_helper" ]; then
-    printf '%s\n' "$repo_sync_helper"
+  if [ -x "$repo_skillx" ]; then
+    printf '%s\n' "$repo_skillx"
     return 0
   fi
 
@@ -101,17 +101,17 @@ show_ssh_key_todo() {
 }
 
 if [ -f "$HOME/.agents/.skill-lock.json" ]; then
-  if sync_cmd="$(sync_agent_skills_cmd)"; then
+  if sync_cmd="$(skillx_cmd)"; then
     if is_dry_run; then
-      status plan "$sync_cmd"
+      status plan "$sync_cmd sync"
     else
-      run "$sync_cmd"
+      run "$sync_cmd" sync
     fi
   else
-    status todo "sync-agent-skills after ~/.agents/.skill-lock.json is available and node tooling is installed"
+    status todo "skillx sync after ~/.agents/.skill-lock.json is available and node tooling is installed"
   fi
 else
-  status todo "sync-agent-skills after ~/.agents/.skill-lock.json is available and node tooling is installed"
+  status todo "skillx sync after ~/.agents/.skill-lock.json is available and node tooling is installed"
 fi
 
 show_ssh_key_todo
