@@ -15,6 +15,9 @@
         },
         {
           "id": "gemma4:31b-cloud"
+        },
+        {
+          "id": "gpt-oss:20b-cloud"
         }
       ],
       "authHeader": true,

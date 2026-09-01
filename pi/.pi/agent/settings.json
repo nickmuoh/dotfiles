@@ -29,9 +29,9 @@
     "cloudUrl": "https://ollama.com",
     "apiKey": "ollama"
   },
-  "lastChangelogVersion": "0.84.2",
+  "lastChangelogVersion": "0.84.4",
   "defaultProvider": "amazon-bedrock",
-  "defaultModel": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "defaultModel": "us.anthropic.claude-sonnet-5",
   "defaultThinkingLevel": "medium",
   "env": {
     "FFF_ENABLE_HOME_SCAN": "0",

@@ -49,7 +49,8 @@
       "action": "allow",
       "match": {
         "ids": [
-          "gemma4:31b-cloud"
+          "gemma4:31b-cloud",
+          "gpt-oss:20b-cloud"
         ]
       }
     },

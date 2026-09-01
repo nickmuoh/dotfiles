@@ -5,7 +5,7 @@
     "CLAUDE_CODE_USE_BEDROCK": "1",
     "AWS_REGION": "us-west-2"
   },
-  "model": "us.anthropic.claude-sonnet-4-6[1m]",
+  "model": "us.anthropic.claude-sonnet-5",
   "disableClaudeAiConnectors": true,
   "disableBundledSkills": true,
   "hooks": {
@@ -49,12 +49,13 @@
   },
   "disableRemoteControl": true,
   "disableArtifact": true,
-  "effortLevel": "medium",
-  "autoCompactWindow": 200000,
-  "skipDangerousModePermissionPrompt": true,
-  "theme": "dark",
-  "autoCompactEnabled": true,
   "enabledPlugins": {
     "miro@claude-plugins-official": true
-  }
+  },
+  "effortLevel": "medium",
+  "autoCompactWindow": 200000,
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
+  "autoCompactEnabled": true
 }
