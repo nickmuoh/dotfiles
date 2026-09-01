@@ -202,7 +202,7 @@ return undefined;
     name: "ollama_status",
     label: "Ollama Status",
     description: "Return Ollama connection and sync status",
-    parameters: {},
+    parameters: { type: "object", properties: {} },
     async execute(_toolCallId: any, _params: any, _signal: any, _onUpdate: any, _ctx: any) {
       const modelsPath = join(await (await import("@earendil-works/pi-coding-agent")).getAgentDir(), "models.json");
       try {
@@ -245,7 +245,7 @@ return undefined;
     name: "ollama_refresh",
     label: "Ollama Refresh",
     description: "Refresh Ollama model list",
-    parameters: {},
+    parameters: { type: "object", properties: {} },
     async execute(_toolCallId: any, _params: any, _signal: any, _onUpdate: any, _ctx: any) {
       const modelsPath = join(await (await import("@earendil-works/pi-coding-agent")).getAgentDir(), "models.json");
       try {

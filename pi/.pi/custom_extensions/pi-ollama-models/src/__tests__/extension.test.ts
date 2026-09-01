@@ -104,6 +104,28 @@ describe("Ollama model discovery", () => {
     expect(registered).not.toHaveProperty("filter");
   });
 
+  it("registers no-argument tools with object parameter schemas", async () => {
+    const root = await mkdtemp(join(tmpdir(), "ollama-models-test-"));
+    await writeFile(join(root, "models.json"), JSON.stringify({ providers: { ollama: {
+      baseUrl: "http://x", models: [],
+    } } }));
+    const pi = {
+      registerProvider: vi.fn(),
+      registerCommand: vi.fn(),
+      registerTool: vi.fn(),
+    };
+
+    await startPiOllamaModels(pi, {
+      getAgentDir: () => root,
+      fetchFn: async () => { throw new Error("offline"); },
+    });
+
+    expect(pi.registerTool.mock.calls.map(([tool]) => [tool.name, tool.parameters])).toEqual([
+      ["ollama_status", { type: "object", properties: {} }],
+      ["ollama_refresh", { type: "object", properties: {} }],
+    ]);
+  });
+
   it("uses an atomic rewrite that preserves the target mode and symlink", async () => {
     const root = await mkdtemp(join(tmpdir(), "ollama-models-test-"));
     const target = join(root, "real.json");
