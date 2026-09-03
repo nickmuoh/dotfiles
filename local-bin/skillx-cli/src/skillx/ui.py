@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Iterable
 from typing import TextIO
 
 from .models import (
+    Entry,
     EventAction,
     EventKind,
-    Entry,
     ExecutionEvent,
     FailureState,
     Operation,
@@ -71,8 +72,10 @@ class Renderer:
         self.progress_open = False
 
     def render(self, events: Iterable[ExecutionEvent], *, json_output: bool) -> int:
+        start_time = time.time()
         report: Report | None = None
         for event in events:
+
             if json_output:
                 if event.kind is EventKind.FAILED:
                     self._diagnose_failure(event)
@@ -91,6 +94,11 @@ class Renderer:
         if json_output:
             json.dump(report.to_dict(), self.stdout, sort_keys=True)
             self.stdout.write("\n")
+
+        if not json_output:
+            elapsed = time.time() - start_time
+            self._line(f"Finished in {elapsed:.2f}s")
+
         return report.exit_code
 
     def _render_human(self, event: ExecutionEvent) -> None:
@@ -98,15 +106,11 @@ class Renderer:
             self._finish_progress()
             phase(self.stdout, self._message(event), interactive=self.interactive)
         elif event.kind is EventKind.PROGRESS:
-            progress_line(
-                self.stdout,
-                event.current or 0,
-                event.total or 0,
-                self._message(event),
-                interactive=self.interactive,
-            )
-            self.progress_open = self.interactive
+            # We now treat PROGRESS as a data collection event for the final list
+            # instead of an immediate line print.
+            pass
         elif event.kind is EventKind.MUTATION or event.kind is EventKind.BLOCKED:
+
             self._finish_progress()
             self._line(self._message(event))
         elif event.kind is EventKind.FAILED:
@@ -115,16 +119,32 @@ class Renderer:
             self._diagnose_failure(event)
         elif event.kind is EventKind.COMPLETE and event.report is not None:
             self._finish_progress()
+            self._render_skills_list(event.report)
             self._findings(event.report)
             self._summary(event.report)
             if self.verbosity:
                 self._diagnose_report(event.report)
+
 
     def _message(self, event: ExecutionEvent) -> str:
         emoji = EMOJI.get(event.action) if event.action is not None else None
         if emoji is None and event.kind is EventKind.FAILED:
             emoji = "❌"
         return f"{emoji} {event.message}" if emoji else event.message
+
+    def _render_skills_list(self, report: Report) -> None:
+        """Render skills grouped by source."""
+        if not report.entries:
+            return
+
+        sources: dict[str, list[str]] = {}
+        for entry in report.entries:
+            sources.setdefault(entry.source, []).append(entry.skill)
+
+        for source, skills in sorted(sources.items()):
+            self._line(f"{BLUE_BOLD}{source}{RESET}")
+            for skill in sorted(skills):
+                self._line(f"  - {skill}")
 
     def _summary(self, report: Report) -> None:
         planned = report.planned_changes
@@ -210,9 +230,7 @@ class Renderer:
             findings = tuple(
                 entry for entry in report.entries if entry.status is Status.PRUNABLE
             )
-        elif report.operation is Operation.ADOPT:
-            findings = report.entries
-        elif report.operation is Operation.SYNC and report.result is Result.PLANNED:
+        elif report.operation is Operation.ADOPT or report.operation is Operation.SYNC and report.result is Result.PLANNED:
             findings = report.entries
         else:
             return
@@ -240,6 +258,9 @@ class Renderer:
         self._line(heading)
         if report.operation is Operation.SYNC and report.result is Result.PLANNED:
             self._sync_plan(findings)
+        elif report.operation is Operation.ADOPT:
+            # Group adopts by source for clearer output
+            self._adopt_plan_output(findings)
         else:
             for entry in findings:
                 marker = "✓" if report.operation is Operation.ADOPT else "✗"
@@ -306,6 +327,17 @@ class Renderer:
             if remaining:
                 suffix = f" … (+{remaining} more)"
             self._line(f"  📦 {source}: {', '.join(visible)}{suffix}")
+
+    def _adopt_plan_output(self, findings: tuple[Entry, ...]) -> None:
+        """Print adopted ownership plan grouped by source for clearer readability."""
+        groups: dict[str, list[Entry]] = {}
+        for entry in findings:
+            groups.setdefault(entry.source, []).append(entry)
+        for src, entries in groups.items():
+            self._line(f"{src}:")
+            for e in entries:
+                path = f"/home/nmuoh/.agents/skills/{e.skill}"
+                self._line(f"  - {e.skill} -> {path}")
 
     def _next_step_for_blocked(self, findings: tuple[Entry, ...]) -> None:
         statuses = {entry.status for entry in findings}
