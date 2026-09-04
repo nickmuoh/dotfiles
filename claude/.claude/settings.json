@@ -49,11 +49,20 @@
   },
   "disableRemoteControl": true,
   "disableArtifact": true,
+  "statusLine": {
+    "type": "command",
+    "command": "uv run ~/.claude/claude-statusline-tracker.py"
+  },
   "enabledPlugins": {
     "miro@claude-plugins-official": true
   },
   "effortLevel": "medium",
-  "autoCompactWindow": 200000,
+  "modelSettings": {
+    "claude-sonnet-5": {
+      "effortLevel": "high"
+    }
+  },
+  "autoCompactWindow": 500000,
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
