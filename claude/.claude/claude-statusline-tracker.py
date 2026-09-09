@@ -351,7 +351,9 @@ cost_usd = 0.0
 dur_ms = 0
 
 try:
-    model = claude_ctx.get("model", {}).get("display_name", "")
+    model = claude_ctx.get("model", {})
+    model_display_name = model.get("display_name", "")
+    effort = model.get("effort", "")
     cw = claude_ctx.get("context_window", {})
     ctx_pct = cw.get("used_percentage", 0)
     ctx_rem = cw.get("remaining_percentage", 0)
@@ -381,14 +383,15 @@ elif cost_30d >= 150:
 else:
     cost_30d_str = f"${cost_30d:.2f}"
 
-if model:
+if model_display_name:
     ctx_filled = round(ctx_pct / 10)
     ctx_bar = "█" * ctx_filled + "░" * (10 - ctx_filled)
     ctx_color = RED if ctx_pct >= 80 else ORANGE
     duration_str = _fmt_duration(dur_ms)
 
+    effort_str = f" [{effort}]" if effort else ""
     print(
-        f"{ORANGE}{BOLD}✦ {model}{RESET}"
+        f"{ORANGE}{BOLD}✦ {model_display_name}{RESET}{effort_str}"
         f"{SEP}{LABEL}context{RESET} {ctx_color}{ctx_pct}%{RESET} {DIM}[{RESET}{ctx_bar}{DIM}]{RESET}"
         f"{SEP}{LABEL}session{RESET} ${cost_usd:.2f} {DIM}{duration_str}{RESET}"
         f"{SEP}{LABEL}today{RESET} ${costs.get('today', 0):.2f}"
