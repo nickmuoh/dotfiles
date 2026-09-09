@@ -19,9 +19,9 @@
       ]
     },
     "npm:pi-web-access",
-    "npm:@narumitw/pi-btw",
     "npm:@ff-labs/pi-fff",
-    "npm:pi-context-view"
+    "npm:pi-context-view",
+    "npm:@narumitw/pi-btw"
   ],
   "hideThinkingBlock": true,
   "ollama": {
@@ -29,7 +29,7 @@
     "cloudUrl": "https://ollama.com",
     "apiKey": "ollama"
   },
-  "lastChangelogVersion": "0.84.4",
+  "lastChangelogVersion": "0.85.1",
   "defaultProvider": "amazon-bedrock",
   "defaultModel": "us.anthropic.claude-sonnet-5",
   "defaultThinkingLevel": "medium",
@@ -38,5 +38,7 @@
     "CLAUDE_CODE_USE_BEDROCK": "1",
     "AWS_PROFILE": "claude",
     "AWS_REGION": "us-west-2"
-  }
+  },
+  "fullscreenExitOutput": "transcript",
+  "fullscreenScrollbar": "auto"
 }

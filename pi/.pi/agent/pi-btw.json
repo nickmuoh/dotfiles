@@ -1,0 +1,4 @@
+{
+  "thinkingLevel": "medium",
+  "model": "amazon-bedrock/us.anthropic.claude-sonnet-5"
+}
