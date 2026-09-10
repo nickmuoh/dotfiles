@@ -1,29 +1,30 @@
 {
   "theme": "dark",
   "packages": [
-    "npm:@tintinweb/pi-tasks",
-    "npm:@tintinweb/pi-subagents",
-    "npm:pi-intercom",
-    "npm:pi-prompt-template-model",
-    "npm:pi-context-tools",
+    "npm:@ff-labs/pi-fff",
     "npm:@juicesharp/rpiv-ask-user-question",
-    "npm:pi-double-esc",
-    "npm:pi-mcp-adapter",
-    "npm:pi-quiet-tools",
+    "npm:@juicesharp/rpiv-todo",
+    "npm:@narumitw/pi-btw",
+    "npm:@nguyenquangthai/pi-subtask",
     "npm:@pi-kaush/pi-welcome-screen@latest",
+    "npm:pi-context-tools",
+    "npm:pi-context-view",
+    "npm:pi-double-esc",
     "npm:pi-env",
+    "npm:pi-intercom",
+    "npm:pi-mcp-adapter",
+    "npm:pi-prompt-template-model",
+    "npm:pi-quiet-tools",
+    "npm:pi-subagents",
+    "npm:pi-web-access",
     {
       "source": "npm:@m4riok/pi-ide-bridge",
       "extensions": [
         "-index.ts"
       ]
-    },
-    "npm:pi-web-access",
-    "npm:@ff-labs/pi-fff",
-    "npm:pi-context-view",
-    "npm:@narumitw/pi-btw"
+    }
   ],
-  "hideThinkingBlock": true,
+  "hideThinkingBlock": false,
   "ollama": {
     "baseUrl": "http://172.17.48.1:11435",
     "cloudUrl": "https://ollama.com",
