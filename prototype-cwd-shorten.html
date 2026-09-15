@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE — CWD shortening for Pi footer (throwaway)</title>
+<style>
+  :root { --accent: #4f7cff; }
+  body { font-family: -apple-system, Segoe UI, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #222; line-height: 1.5; }
+  h1 { font-size: 20px; }
+  .intro { background: #f3f5ff; border-left: 4px solid var(--accent); padding: 12px 16px; margin-bottom: 24px; }
+  .panel { border: 1px solid #ddd; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }
+  input[type=text] { width: 100%; padding: 8px; font-family: monospace; font-size: 14px; box-sizing: border-box; }
+  .row { display: flex; gap: 16px; margin-bottom: 12px; }
+  .row > div { flex: 1; }
+  button { cursor: pointer; border: 1px solid #ccc; background: #fff; padding: 6px 12px; border-radius: 6px; font-size: 13px; margin: 2px; }
+  button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .result { font-family: monospace; font-size: 15px; background: #1e1e2e; color: #cdd6f4; padding: 10px 14px; border-radius: 6px; white-space: pre; overflow-x: auto; }
+  .presets button { display: block; width: 100%; text-align: left; margin-bottom: 4px; }
+  .footer-line { font-family: monospace; font-size: 13px; color: #888; margin-top: 4px; }
+  code { background: #eee; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<h1>PROTOTYPE — Pi footer CWD-shortening options</h1>
+<div class="intro">
+  <b>Question:</b> given the full working-directory path already ~-substituted by
+  <code>formatCwdForFooter</code>, which abbreviation rule best shortens it while staying readable,
+  keeping the leaf and its immediate parent legible? Try the presets and your own paths against
+  each option below and see which one you'd actually want scrolling past in a terminal footer.
+</div>
+
+<div class="panel">
+  <div class="row">
+    <div>
+      <label>Path (already ~-substituted, forward slashes)</label>
+      <input type="text" id="pathInput" value="~/Developer/_SketchUp/sbd-legionrepo-wt/snowflake_cdp_dcm/projects/snowflake_cdp_dcm">
+    </div>
+  </div>
+  <div class="presets">
+    <label>Presets (edge cases worth checking)</label>
+    <button data-p="~/Developer/_SketchUp/sbd-legionrepo-wt/snowflake_cdp_dcm/projects/snowflake_cdp_dcm">Deep path (original example)</button>
+    <button data-p="~/projects/dotfiles">Short path (3 segments)</button>
+    <button data-p="~/dotfiles">Very short (2 segments)</button>
+    <button data-p="~">Home root alone</button>
+    <button data-p="/var/www/some-very-long-service-name/backend/src">Outside $HOME (absolute)</button>
+    <button data-p="/">Filesystem root alone</button>
+    <button data-p="~/a/b">Two single-char segments</button>
+  </div>
+</div>
+
+<div class="panel">
+  <label>Option — pick one to compare</label>
+  <div id="optionButtons"></div>
+  <div class="result" id="result"></div>
+  <div class="footer-line" id="footerPreview"></div>
+</div>
+
+<script>
+// ---- Pure module: lift this straight into footer.ts once an option is chosen ----
+
+// Option 1 (as specified in the handoff): keep the last 2 segments full,
+// collapse every earlier segment to its first character.
+function shortenLastTwoFull(path) {
+  const isAbs = path.startsWith('/');
+  const isHome = path.startsWith('~');
+  const segs = path.split('/').filter(Boolean);
+  const realSegs = isHome ? segs.slice(1) : segs;
+  if (realSegs.length <= 2) return path; // nothing to shorten
+  const kept = realSegs.slice(-2);
+  const abbrev = realSegs.slice(0, -2).map(s => s[0]);
+  const prefix = isHome ? '~' : (isAbs ? '' : '');
+  return [prefix, ...abbrev, ...kept].join('/') || '/';
+}
+
+// Option 2: same idea but keep last 1 segment full (more aggressive shortening,
+// closer to zsh's default PROMPT truncation).
+function shortenLastOneFull(path) {
+  const realSegs = path.startsWith('~') ? path.split('/').filter(Boolean).slice(1) : path.split('/').filter(Boolean);
+  if (realSegs.length <= 1) return path;
+  const kept = realSegs.slice(-1);
+  const abbrev = realSegs.slice(0, -1).map(s => s[0]);
+  const prefix = path.startsWith('~') ? '~' : (path.startsWith('/') ? '' : '');
+  return [prefix, ...abbrev, ...kept].join('/');
+}
+
+// Option 3: keep last 2 segments full, but only abbreviate earlier segments
+// once the total path exceeds a length budget — short paths stay untouched
+// even mid-tree (avoids abbreviating a 3-segment path that already fits).
+function shortenIfOverBudget(path, budget = 40) {
+  if (path.length <= budget) return path;
+  return shortenLastTwoFull(path);
+}
+
+const OPTIONS = {
+  'A: last 2 full, rest → first char (handoff spec)': shortenLastTwoFull,
+  'B: last 1 full, rest → first char (more aggressive)': shortenLastOneFull,
+  'C: last 2 full, only abbreviate past 40 chars': (p) => shortenIfOverBudget(p, 40),
+};
+
+// ---- Throwaway page shell below ----
+
+let current = Object.keys(OPTIONS)[0];
+
+function render() {
+  const path = document.getElementById('pathInput').value;
+  const fn = OPTIONS[current];
+  let out;
+  try { out = fn(path); } catch (e) { out = 'ERROR: ' + e.message; }
+  document.getElementById('result').textContent = out;
+  document.getElementById('footerPreview').textContent =
+    out + ' (snowflake_cdp/dcm) • dcm-orchestrator   —  full footer preview';
+}
+
+const btnWrap = document.getElementById('optionButtons');
+Object.keys(OPTIONS).forEach(name => {
+  const b = document.createElement('button');
+  b.textContent = name;
+  if (name === current) b.classList.add('active');
+  b.onclick = () => {
+    current = name;
+    [...btnWrap.children].forEach(c => c.classList.remove('active'));
+    b.classList.add('active');
+    render();
+  };
+  btnWrap.appendChild(b);
+});
+
+document.querySelectorAll('.presets button').forEach(b => {
+  b.onclick = () => { document.getElementById('pathInput').value = b.dataset.p; render(); };
+});
+
+document.getElementById('pathInput').addEventListener('input', render);
+render();
+</script>
+</body>
+</html>
