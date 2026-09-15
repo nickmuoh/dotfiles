@@ -39,7 +39,7 @@
     </div>
     <div style="flex: 0 0 120px;">
       <label>Max length (Option D)</label>
-      <input type="text" id="limitInput" value="30">
+      <input type="text" id="limitInput" value="80">
     </div>
   </div>
   <div class="presets">
@@ -66,6 +66,17 @@
 
 // Option 1 (as specified in the handoff): keep the last 2 segments full,
 // collapse every earlier segment to its first character.
+// A segment abbreviates to its first char, unless that first char isn't a
+// letter/digit (e.g. `_SketchUp`, `.config`) — then keep the marker char
+// plus the next letter/digit so the abbreviation stays recognisable
+// (`_SketchUp` → `_S`, not a bare `_`).
+function abbreviateSegment(seg) {
+  const first = seg[0];
+  if (/[a-zA-Z0-9]/.test(first)) return first;
+  const next = seg.slice(1).match(/[a-zA-Z0-9]/);
+  return next ? first + next[0] : first;
+}
+
 function shortenLastTwoFull(path) {
   const isAbs = path.startsWith('/');
   const isHome = path.startsWith('~');
@@ -73,7 +84,7 @@ function shortenLastTwoFull(path) {
   const realSegs = isHome ? segs.slice(1) : segs;
   if (realSegs.length <= 2) return path; // nothing to shorten
   const kept = realSegs.slice(-2);
-  const abbrev = realSegs.slice(0, -2).map(s => s[0]);
+  const abbrev = realSegs.slice(0, -2).map(abbreviateSegment);
   const prefix = isHome ? '~' : (isAbs ? '' : '');
   return [prefix, ...abbrev, ...kept].join('/') || '/';
 }
@@ -84,7 +95,7 @@ function shortenLastOneFull(path) {
   const realSegs = path.startsWith('~') ? path.split('/').filter(Boolean).slice(1) : path.split('/').filter(Boolean);
   if (realSegs.length <= 1) return path;
   const kept = realSegs.slice(-1);
-  const abbrev = realSegs.slice(0, -1).map(s => s[0]);
+  const abbrev = realSegs.slice(0, -1).map(abbreviateSegment);
   const prefix = path.startsWith('~') ? '~' : (path.startsWith('/') ? '' : '');
   return [prefix, ...abbrev, ...kept].join('/');
 }
