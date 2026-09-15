@@ -37,6 +37,10 @@
       <label>Path (already ~-substituted, forward slashes)</label>
       <input type="text" id="pathInput" value="~/Developer/_SketchUp/sbd-legionrepo-wt/snowflake_cdp_dcm/projects/snowflake_cdp_dcm">
     </div>
+    <div style="flex: 0 0 120px;">
+      <label>Max length (Option D)</label>
+      <input type="text" id="limitInput" value="30">
+    </div>
   </div>
   <div class="presets">
     <label>Presets (edge cases worth checking)</label>
@@ -93,15 +97,30 @@ function shortenIfOverBudget(path, budget = 40) {
   return shortenLastTwoFull(path);
 }
 
+// Option A capped: apply the handoff rule (last 2 segments full, rest to
+// first char); if the result still exceeds `limit`, fall back to keeping
+// only the last 1 segment full; if STILL too long (limit smaller than the
+// leaf itself), hard-truncate the front with an ellipsis, always keeping
+// the tail (the leaf) intact and visible.
+function shortenLastTwoFullCapped(path, limit = 30) {
+  let out = shortenLastTwoFull(path);
+  if (out.length <= limit) return out;
+  out = shortenLastOneFull(path);
+  if (out.length <= limit) return out;
+  if (limit <= 1) return out.slice(-limit);
+  return '…' + out.slice(-(limit - 1));
+}
+
 const OPTIONS = {
   'A: last 2 full, rest → first char (handoff spec)': shortenLastTwoFull,
   'B: last 1 full, rest → first char (more aggressive)': shortenLastOneFull,
   'C: last 2 full, only abbreviate past 40 chars': (p) => shortenIfOverBudget(p, 40),
+  'D: Option A capped at max length ↑': (p) => shortenLastTwoFullCapped(p, Number(document.getElementById('limitInput').value) || 30),
 };
 
 // ---- Throwaway page shell below ----
 
-let current = Object.keys(OPTIONS)[0];
+let current = 'D: Option A capped at max length ↑';
 
 function render() {
   const path = document.getElementById('pathInput').value;
@@ -132,6 +151,7 @@ document.querySelectorAll('.presets button').forEach(b => {
 });
 
 document.getElementById('pathInput').addEventListener('input', render);
+document.getElementById('limitInput').addEventListener('input', render);
 render();
 </script>
 </body>
