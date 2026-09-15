@@ -1,5 +1,6 @@
 {
   "awsAuthRefresh": "aws sso login --profile claude",
+  "awsCredentialExport": "aws sts assume-role --role-arn arn:aws:iam::050402647616:role/SuOps-BedrockInvokeRole --role-session-name claude --profile claude",
   "env": {
     "AWS_PROFILE": "claude",
     "CLAUDE_CODE_USE_BEDROCK": "1",

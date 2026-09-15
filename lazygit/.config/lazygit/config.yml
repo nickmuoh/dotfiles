@@ -1,22 +1,26 @@
-# git:
-#   pagers:
-#     - externalDiffCommand: /snap/bin/difftastic --color=always
+git:
+  branchLogCmd: sh -c 'git log --graph --color=always --abbrev-commit --decorate --oneline {{branchName}} -- | sed -e s/\\*/●/ -e s/\\|/│/'
+  diffRenderers:
+    - type: extDiff
+      command: difft --color=always --context={{diffContext}}
+      name: difftastic
+    - type: rawGit
+      name: unified
+customCommands:
+  - key: "<c-g>"
+    description: "Generate AI commit message"
+    context: "files"
+    loadingText: "Generating commit message..."
+    command: >
+      bash -c '
 
-# customCommands:
-#   - key: "<c-a>"
-#     description: "Generate AI commit message"
-#     context: "files"
-#     loadingText: "Generating commit message..."
-#     command: >
-#       bash -c '
-#         PROMPT="$HOME/.config/lazygit/commit_prompt.md"
-#         DIFF="$(git diff --cached)"
-# 
-#         copilot -p "$(cat "$PROMPT")\n\n$DIFF" \
-#           --model "gpt-5-mini" \
-#           --output-format text \
-#           --silent \
-#         > /tmp/commit_msg
-# 
-#         git commit -m "$(cat /tmp/commit_msg)"
-#       '
+        PROMPT="$HOME/.config/lazygit/git-commit-msg.prompt.md"
+
+        git diff --cached | pi -p --no-session --no-tools \
+          --provider ollama --model "gpt-oss:20b-cloud" \
+          "$(cat "$PROMPT")" \
+        > /tmp/commit_msg
+
+        git commit -e -m "$(cat /tmp/commit_msg)"
+      '
+    output: terminal

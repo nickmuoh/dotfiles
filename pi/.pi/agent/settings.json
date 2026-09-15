@@ -22,7 +22,8 @@
       "extensions": [
         "-index.ts"
       ]
-    }
+    },
+    "git:github.com/DietrichGebert/ponytail"
   ],
   "hideThinkingBlock": false,
   "ollama": {
@@ -37,7 +38,7 @@
   "env": {
     "FFF_ENABLE_HOME_SCAN": "0",
     "CLAUDE_CODE_USE_BEDROCK": "1",
-    "AWS_PROFILE": "claude",
+    "AWS_PROFILE": "claude-bedrock",
     "AWS_REGION": "us-west-2"
   },
   "fullscreenExitOutput": "transcript",

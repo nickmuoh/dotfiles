@@ -9,8 +9,8 @@
   },
   "dependencies": {
     "@ff-labs/pi-fff": "^0.10.6",
-    "@juicesharp/rpiv-ask-user-question": "^2.9.0",
-    "@juicesharp/rpiv-todo": "^2.9.0",
+    "@juicesharp/rpiv-ask-user-question": "^2.10.1",
+    "@juicesharp/rpiv-todo": "^2.10.1",
     "@m4riok/pi-ide-bridge": "^0.2.0",
     "@narumitw/pi-btw": "^0.58.1",
     "@nguyenquangthai/pi-subtask": "^1.0.1",
@@ -20,10 +20,10 @@
     "pi-double-esc": "^1.0.11",
     "pi-env": "^1.0.1",
     "pi-intercom": "^0.13.0",
-    "pi-mcp-adapter": "^2.32.1",
+    "pi-mcp-adapter": "^2.34.0",
     "pi-prompt-template-model": "^0.12.2",
     "pi-quiet-tools": "^0.2.0",
-    "pi-subagents": "^0.66.0",
-    "pi-web-access": "^0.28.0"
+    "pi-subagents": "^0.68.0",
+    "pi-web-access": "^0.29.0"
   }
 }
