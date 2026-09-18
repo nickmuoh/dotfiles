@@ -1,4 +1,3 @@
-
 #
 # difftastic
 #
@@ -121,10 +120,16 @@ ollama_tunnel() {
   set_wt_title "WSL"
 }
 
-
 #
 # Ollama list
 #
 ols() {
- ollama ls | awk 'NR==1 {print; next} {print | "sort"}'
+  ollama ls | awk 'NR==1 {print; next} {print | "sort"}'
+}
+
+#
+# Tmux
+#
+workon() {
+  set_wt_title "$1" && tmux new -t "$1"
 }
