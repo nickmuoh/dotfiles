@@ -1,0 +1,42 @@
+{
+  "name": "pi-minimal-statusline",
+  "version": "0.1.0",
+  "description": "Minimal Pi footer replacement that shortens the working-directory line; keeps the stats/cost/model line in the same format as Pi's stock footer.",
+  "author": "nmuoh",
+  "license": "Unlicense",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "statusline",
+    "footer"
+  ],
+  "type": "module",
+  "main": "./dist/extension.js",
+  "exports": {
+    ".": "./dist/extension.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=0.74.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+  },
+  "pi": {
+    "extensions": [
+      "./dist/extension.js"
+    ]
+  }
+}

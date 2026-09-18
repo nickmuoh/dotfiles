@@ -12,7 +12,7 @@
     "@juicesharp/rpiv-ask-user-question": "^2.10.1",
     "@juicesharp/rpiv-todo": "^2.10.1",
     "@m4riok/pi-ide-bridge": "^0.2.0",
-    "@narumitw/pi-btw": "^0.58.1",
+    "@narumitw/pi-btw": "^0.60.0",
     "@nguyenquangthai/pi-subtask": "^1.0.1",
     "@pi-kaush/pi-welcome-screen": "^0.1.10",
     "pi-context-tools": "^0.1.1",
