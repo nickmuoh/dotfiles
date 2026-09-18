@@ -17,8 +17,9 @@ customCommands:
         PROMPT="$HOME/.config/lazygit/git-commit-msg.prompt.md"
 
         git diff --cached | pi -p --no-session --no-tools \
+          --no-context-files --no-skills --no-extensions \
           --provider ollama --model "gpt-oss:20b-cloud" \
-          "$(cat "$PROMPT")" \
+          --system-prompt "$(cat "$PROMPT")" \
         > /tmp/commit_msg
 
         git commit -e -m "$(cat /tmp/commit_msg)"
