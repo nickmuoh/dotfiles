@@ -17,6 +17,7 @@ The `nvim` package manages the LazyVim-style configuration under `~/.config/nvim
 ## Key commands
 
 - `<leader>p` opens the Legendary command palette.
+- The command palette includes `:belowright split | terminal` to open a terminal at the bottom.
 - The command palette includes fold controls: `zM`/`zR`/`za`/`zc`/`zo`, `:set foldlevel={0,1,2,3,99}`, and `:set foldmethod={indent,expr,manual}`.
 - `<C-s>` saves the current file; `<C-z>` undoes the last change (mapped to `u`) in normal, insert, and visual modes, alongside the default `u`/`<C-r>` undo/redo keys.
 - `:RenderMarkdown toggle`, `:RenderMarkdown buf_toggle`, and `:RenderMarkdown preview` control Markdown rendering.

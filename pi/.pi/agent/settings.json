@@ -22,7 +22,9 @@
       "extensions": [
         "-index.ts"
       ]
-    }
+    },
+    "git:github.com/DietrichGebert/ponytail",
+    "npm:pi-extmgr"
   ],
   "hideThinkingBlock": false,
   "ollama": {
@@ -30,16 +32,17 @@
     "cloudUrl": "https://ollama.com",
     "apiKey": "ollama"
   },
-  "lastChangelogVersion": "0.85.1",
+  "lastChangelogVersion": "0.87.1",
   "defaultProvider": "amazon-bedrock",
   "defaultModel": "us.anthropic.claude-sonnet-5",
   "defaultThinkingLevel": "medium",
   "env": {
     "FFF_ENABLE_HOME_SCAN": "0",
     "CLAUDE_CODE_USE_BEDROCK": "1",
-    "AWS_PROFILE": "claude",
+    "AWS_PROFILE": "claude-bedrock",
     "AWS_REGION": "us-west-2"
   },
   "fullscreenExitOutput": "transcript",
-  "fullscreenScrollbar": "auto"
+  "fullscreenScrollbar": "auto",
+  "tuiMode": "fullscreen"
 }
