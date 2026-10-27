@@ -33,6 +33,7 @@ return {
         { ":RenderMarkdown buf_enable", description = "Render the current Markdown buffer" },
         { ":RenderMarkdown buf_disable", description = "Use the raw current Markdown buffer" },
         { ":set wrap!", description = "Toggle word wrap" },
+        { ":belowright split | terminal", description = "Open terminal at bottom" },
         { "zM", description = "Fold: close all folds" },
         { "zR", description = "Fold: open all folds" },
         { "za", description = "Fold: toggle fold under cursor" },

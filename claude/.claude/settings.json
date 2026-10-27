@@ -1,6 +1,6 @@
 {
-  "awsAuthRefresh": "aws sso login --profile claude",
   "awsCredentialExport": "aws sts assume-role --role-arn arn:aws:iam::050402647616:role/SuOps-BedrockInvokeRole --role-session-name claude --profile claude",
+  "awsAuthRefresh": "aws sso login --profile claude",
   "env": {
     "AWS_PROFILE": "claude",
     "CLAUDE_CODE_USE_BEDROCK": "1",
@@ -55,7 +55,25 @@
     "command": "uv run ~/.claude/claude-statusline-tracker.py"
   },
   "enabledPlugins": {
-    "miro@claude-plugins-official": true
+    "miro@claude-plugins-official": true,
+    "snowflake-cortex-code@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "mc-agent-toolkit@mc-marketplace": true,
+    "ponytail@ponytail": true
+  },
+  "extraKnownMarketplaces": {
+    "mc-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "monte-carlo-data/mc-agent-toolkit"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    }
   },
   "effortLevel": "medium",
   "modelSettings": {
